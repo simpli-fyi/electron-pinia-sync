@@ -1,0 +1,27 @@
+{
+  "name": "electron-pinia-sync-example-basic-counter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Basic counter example for electron-pinia-sync",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build && electron-builder",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron-pinia-sync": "workspace:*",
+    "pinia": "^3.0.0",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.0",
+    "electron": "^40.1.0",
+    "electron-builder": "^25.1.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.2.0",
+    "vue-tsc": "^2.2.0"
+  }
+}
+

@@ -1,0 +1,34 @@
+# Source files
+src/
+examples/
+
+# Configuration files
+tsconfig.json
+vitest.config.ts
+.eslintrc.js
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Tests
+**/*.test.ts
+**/*.spec.ts
+coverage/
+
+# CI/CD
+.github/
+
+# Docs that are not needed in package
+CONTRIBUTING.md
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+

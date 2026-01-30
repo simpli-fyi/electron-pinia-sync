@@ -1,0 +1,86 @@
+{
+  "name": "electron-pinia-sync",
+  "version": "1.0.0",
+  "description": "A comprehensive Pinia plugin for Electron that synchronizes store states across multiple windows via IPC and provides seamless persistence through electron-store.",
+  "license": "MIT",
+  "author": "simpli.fyi",
+  "website": "https://simpli.fyi",
+  "keywords": [
+    "electron",
+    "pinia",
+    "vue",
+    "state-management",
+    "synchronization",
+    "ipc",
+    "persistence"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/simpli-fyi/electron-pinia-sync.git"
+  },
+  "type": "module",
+  "packageManager": "npm@10.9.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "exports": {
+    "./main": {
+      "types": "./dist/main/index.d.ts",
+      "import": "./dist/main/index.js"
+    },
+    "./renderer": {
+      "types": "./dist/renderer/index.d.ts",
+      "import": "./dist/renderer/index.js"
+    },
+    "./preload": {
+      "types": "./dist/preload/index.d.ts",
+      "import": "./dist/preload/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CONTRIBUTING.md"
+  ],
+  "scripts": {
+    "build": "npm run clean && npm run build:main && npm run build:renderer && npm run build:preload",
+    "build:main": "tsup src/main/index.ts --format esm --dts --outDir dist/main --clean",
+    "build:renderer": "tsup src/renderer/index.ts --format esm --dts --outDir dist/renderer --clean",
+    "build:preload": "tsup src/preload/index.ts --format esm --dts --outDir dist/preload --clean",
+    "clean": "rm -rf dist",
+    "dev": "npm run build --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm run test && npm run typecheck"
+  },
+  "peerDependencies": {
+    "electron": ">=40.0.0",
+    "pinia": ">=3.0.0",
+    "vue": ">=3.5.0"
+  },
+  "dependencies": {
+    "electron-store": "^11.0.0",
+    "microdiff": "^1.5.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "@types/node": "^25.1.0",
+    "@vitest/coverage-v8": "^4.0.0",
+    "electron": "^40.1.0",
+    "eslint": "^9.39.0",
+    "pinia": "^3.0.0",
+    "playwright": "^1.58.0",
+    "tsup": "^8.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.32.0",
+    "vitest": "^4.0.0",
+    "vue": "^3.5.0"
+  }
+}
