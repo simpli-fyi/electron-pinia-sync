@@ -28,13 +28,13 @@
       "types": "./dist/main/index.d.ts",
       "import": "./dist/main/index.js"
     },
-    "./renderer": {
-      "types": "./dist/renderer/index.d.ts",
-      "import": "./dist/renderer/index.js"
-    },
     "./preload": {
       "types": "./dist/preload/index.d.ts",
       "import": "./dist/preload/index.js"
+    },
+    "./renderer": {
+      "types": "./dist/renderer/index.d.ts",
+      "import": "./dist/renderer/index.js"
     }
   },
   "files": [
@@ -45,9 +45,9 @@
   ],
   "scripts": {
     "build": "npm run clean && npm run build:main && npm run build:renderer && npm run build:preload",
-    "build:main": "tsup src/main/index.ts --format esm --dts --outDir dist/main --clean",
-    "build:renderer": "tsup src/renderer/index.ts --format esm --dts --outDir dist/renderer --clean",
-    "build:preload": "tsup src/preload/index.ts --format esm --dts --outDir dist/preload --clean",
+    "build:main": "tsup src/main/index.ts --format esm --dts --outDir dist/main",
+    "build:preload": "tsup src/preload/index.ts --format esm --dts --outDir dist/preload",
+    "build:renderer": "tsup src/renderer/index.ts --format esm --dts --outDir dist/renderer",
     "clean": "rm -rf dist",
     "dev": "npm run build --watch",
     "test": "vitest run",

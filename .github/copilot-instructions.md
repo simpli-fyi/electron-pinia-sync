@@ -14,6 +14,7 @@ This is **electron-pinia-sync** - a TypeScript library for synchronizing Pinia s
 - ESM-only (no CommonJS)
 - Efficient diffing with `microdiff`
 - Persistence via `electron-store`
+- automatic state hydration
 
 ## Architecture
 
@@ -201,8 +202,6 @@ createRendererSync({
 
 ### Dependencies
 See `package.json` for current versions:
-- `electron-store` - ESM-only persistence
-- `microdiff` - Efficient state diffing
 
 ### Peer Dependencies
 See `package.json` for minimum versions:
@@ -221,7 +220,7 @@ npm test           # Unit tests passing?
 
 ### Before every release
 ```bash
-npm run build      # ESM-only build successful?
+npm run build      # build successful?
 npm test           # Unit tests passing?
 npm run test:e2e   # E2E tests passing?
 npm outdated       # Dependencies up to date?
@@ -333,3 +332,8 @@ Before proposing code:
 - Check CONTRIBUTING.md for development setup
 - Look at examples/ for usage examples
 - Read existing code for consistency
+
+## Important Notes
+- Do not create new doc files
+- If you have any questions, ask a maintainer before proceeding
+- NEVER bundle externals (tsup.config.ts)

@@ -5,8 +5,10 @@ import App from './App.vue';
 
 const pinia = createPinia();
 
-// Add the sync plugin
-pinia.use(createRendererSync());
+// Add the sync plugin with debug mode
+pinia.use(createRendererSync({
+  debug: 'verbose',
+}));
 
 const app = createApp(App);
 app.use(pinia);

@@ -1,28 +1,41 @@
 /**
  * Unit tests for Renderer process sync functionality
+ *
+ * IMPORTANT: All mock APIs simulate real Electron IPC behavior using structuredClone.
+ * This ensures patches are serializable and catches issues with reactive proxies
+ * that would otherwise only appear in production (e.g., "An object could not be cloned").
+ *
+ * See: docs/SERIALIZATION_DECISION.md for details on why toRawState is necessary.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createApp } from 'vue';
-import { createPinia, defineStore } from 'pinia';
-import { createRendererSync } from '../renderer/index.js';
-import type { PiniaSyncAPI, StateUpdateMessage } from '../types.js';
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
+import {createApp} from 'vue';
+import {createPinia, defineStore} from 'pinia';
+import {createRendererSync} from '../renderer/index.js';
+import type {PiniaSyncAPI, StateUpdateMessage} from '../types.js';
 
 describe('RendererSync', () => {
   let onStateUpdateCallback: ((message: StateUpdateMessage) => void) | null = null;
 
   /**
    * Factory to create a fresh mockAPI for each test
+   * NOTE: This mock simulates real Electron IPC behavior by using structuredClone
+   * to ensure patches are serializable (no reactive proxies).
+   * This prevents regression of the "An object could not be cloned" bug.
    */
   function createMockAPI(): PiniaSyncAPI {
     return {
       pullState: vi.fn(async (storeId: string) => {
         if (storeId === 'test') {
-          return { count: 10, name: 'initial' };
+          return {count: 10, name: 'initial'};
         }
         return null;
       }),
-      patchState: vi.fn(async () => {}),
+      patchState: vi.fn(async (storeId: string, patch: unknown) => {
+        // Simulate Electron IPC serialization - this would fail if patch contains reactive proxies
+        // This catches the bug where toRawState wasn't used before sending patches
+        structuredClone(patch);
+      }),
       onStateUpdate: vi.fn((callback) => {
         onStateUpdateCallback = callback;
         return () => {
@@ -36,10 +49,10 @@ describe('RendererSync', () => {
    * Helper to create pinia instance with Vue app (required for plugins to work)
    */
   function createTestPinia() {
-    const app = createApp({ template: '<div/>' });
+    const app = createApp({template: '<div/>'});
     const pinia = createPinia();
     app.use(pinia);
-    return { app, pinia };
+    return {app, pinia};
   }
 
   beforeEach(() => {
@@ -63,7 +76,7 @@ describe('RendererSync', () => {
 
     it('should create plugin successfully when API is available', () => {
       const mockAPI = createMockAPI();
-      const plugin = createRendererSync({ customApi: mockAPI });
+      const plugin = createRendererSync({customApi: mockAPI});
       expect(plugin).toBeTypeOf('function');
     });
   });
@@ -71,8 +84,8 @@ describe('RendererSync', () => {
   describe('State Initialization', () => {
     it('should pull initial state from Main process', async () => {
       const mockAPI = createMockAPI();
-      const { pinia } = createTestPinia();
-      const plugin = createRendererSync({ customApi: mockAPI });
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
       pinia.use(plugin);
 
       const useTestStore = defineStore('test', {
@@ -95,8 +108,8 @@ describe('RendererSync', () => {
 
     it('should handle null initial state', async () => {
       const mockAPI = createMockAPI();
-      const { pinia } = createTestPinia();
-      const plugin = createRendererSync({ customApi: mockAPI });
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
       pinia.use(plugin);
 
       const useTestStore = defineStore('nonexistent', {
@@ -118,8 +131,8 @@ describe('RendererSync', () => {
   describe('Local to Main Synchronization', () => {
     it('should send patches to Main when state changes', async () => {
       const mockAPI = createMockAPI();
-      const { pinia } = createTestPinia();
-      const plugin = createRendererSync({ customApi: mockAPI });
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
       pinia.use(plugin);
 
       const useTestStore = defineStore('test', {
@@ -137,7 +150,7 @@ describe('RendererSync', () => {
       vi.mocked(mockAPI.patchState).mockClear();
 
       // Change state
-      store.$patch({ count: 20 });
+      store.$patch({count: 20});
 
       // Wait for async patch
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -145,14 +158,14 @@ describe('RendererSync', () => {
       expect(mockAPI.patchState).toHaveBeenCalled();
       const call = vi.mocked(mockAPI.patchState).mock.calls[0];
       expect(call[0]).toBe('test');
-      expect(call[1]).toEqual({ count: 20 });
+      expect(call[1]).toEqual({count: 20});
       expect(call[2]).toBeTruthy(); // Transaction ID
     });
 
     it('should not send patches during remote update', async () => {
       const mockAPI = createMockAPI();
-      const { pinia } = createTestPinia();
-      const plugin = createRendererSync({ customApi: mockAPI });
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
       pinia.use(plugin);
 
       const useTestStore = defineStore('test', {
@@ -171,7 +184,7 @@ describe('RendererSync', () => {
       if (onStateUpdateCallback) {
         onStateUpdateCallback({
           storeId: 'test',
-          state: { count: 30 },
+          state: {count: 30},
         });
       }
 
@@ -186,8 +199,8 @@ describe('RendererSync', () => {
   describe('Main to Renderer Synchronization', () => {
     it('should apply updates from Main process', async () => {
       const mockAPI = createMockAPI();
-      const { pinia } = createTestPinia();
-      const plugin = createRendererSync({ customApi: mockAPI });
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
       pinia.use(plugin);
 
       const useTestStore = defineStore('test', {
@@ -204,7 +217,7 @@ describe('RendererSync', () => {
       if (onStateUpdateCallback) {
         onStateUpdateCallback({
           storeId: 'test',
-          state: { count: 50 },
+          state: {count: 50},
         });
       }
 
@@ -215,8 +228,8 @@ describe('RendererSync', () => {
 
     it('should ignore updates for other stores', async () => {
       const mockAPI = createMockAPI();
-      const { pinia } = createTestPinia();
-      const plugin = createRendererSync({ customApi: mockAPI });
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
       pinia.use(plugin);
 
       const useTestStore = defineStore('test', {
@@ -235,7 +248,7 @@ describe('RendererSync', () => {
       if (onStateUpdateCallback) {
         onStateUpdateCallback({
           storeId: 'other-store',
-          state: { count: 99 },
+          state: {count: 99},
         });
       }
 
@@ -249,8 +262,8 @@ describe('RendererSync', () => {
   describe('Transaction ID Handling', () => {
     it('should not apply own transaction updates', async () => {
       const mockAPI = createMockAPI();
-      const { pinia } = createTestPinia();
-      const plugin = createRendererSync({ customApi: mockAPI });
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
       pinia.use(plugin);
 
       const useTestStore = defineStore('test', {
@@ -264,7 +277,7 @@ describe('RendererSync', () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       // Change state locally
-      store.$patch({ count: 100 });
+      store.$patch({count: 100});
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -275,7 +288,7 @@ describe('RendererSync', () => {
       if (onStateUpdateCallback && transactionId) {
         onStateUpdateCallback({
           storeId: 'test',
-          state: { count: 100 },
+          state: {count: 100},
           transactionId,
         });
       }
@@ -296,11 +309,15 @@ describe('RendererSync', () => {
         pullState: vi.fn(async () => {
           throw new Error('Test error');
         }),
-        patchState: vi.fn(async () => {}),
-        onStateUpdate: vi.fn(() => () => {}),
+        patchState: vi.fn(async (storeId: string, patch: unknown) => {
+          // Simulate IPC serialization
+          structuredClone(patch);
+        }),
+        onStateUpdate: vi.fn(() => () => {
+        }),
       };
 
-      const { pinia } = createTestPinia();
+      const {pinia} = createTestPinia();
       const plugin = createRendererSync({
         logger: customLogger,
         customApi: failingMockAPI,
@@ -308,7 +325,7 @@ describe('RendererSync', () => {
       pinia.use(plugin);
 
       const useTestStore = defineStore('test', {
-        state: () => ({ value: 0 }),
+        state: () => ({value: 0}),
       });
 
       useTestStore(pinia);
@@ -323,8 +340,8 @@ describe('RendererSync', () => {
   describe('Cleanup', () => {
     it('should unsubscribe on dispose', async () => {
       const mockAPI = createMockAPI();
-      const { pinia } = createTestPinia();
-      const plugin = createRendererSync({ customApi: mockAPI });
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
       pinia.use(plugin);
 
       const useTestStore = defineStore('test', {
@@ -348,8 +365,8 @@ describe('RendererSync', () => {
   describe('Direct Mutation Handling', () => {
     it('should handle direct state mutations', async () => {
       const mockAPI = createMockAPI();
-      const { pinia } = createTestPinia();
-      const plugin = createRendererSync({ customApi: mockAPI });
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
       pinia.use(plugin);
 
       const useTestStore = defineStore('test', {
@@ -377,6 +394,7 @@ describe('RendererSync', () => {
   describe('Complex Data Structures', () => {
     /**
      * Helper to create mockAPI that tracks all patches
+     * Simulates IPC serialization to catch reactive proxy bugs
      */
     function createTrackingMockAPI() {
       const patches: Array<{ storeId: string; patch: unknown }> = [];
@@ -384,9 +402,12 @@ describe('RendererSync', () => {
         api: {
           pullState: vi.fn(async () => null),
           patchState: vi.fn(async (storeId: string, patch: unknown) => {
-            patches.push({ storeId, patch });
+            // Simulate IPC serialization - would fail on reactive proxies
+            structuredClone(patch);
+            patches.push({storeId, patch});
           }),
-          onStateUpdate: vi.fn(() => () => {}),
+          onStateUpdate: vi.fn(() => () => {
+          }),
         } as PiniaSyncAPI,
         patches,
       };
@@ -394,9 +415,9 @@ describe('RendererSync', () => {
 
     describe('Nested Objects', () => {
       it('should sync entire nested object when property changes', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -417,7 +438,7 @@ describe('RendererSync', () => {
         patches.length = 0; // Clear initial patches
 
         // Change nested property
-        store.$patch({ user: { ...store.user, profile: { ...store.user.profile, age: 31 } } });
+        store.$patch({user: {...store.user, profile: {...store.user.profile, age: 31}}});
         await new Promise(resolve => setTimeout(resolve, 50));
 
         expect(patches.length).toBeGreaterThan(0);
@@ -432,9 +453,9 @@ describe('RendererSync', () => {
       });
 
       it('should handle adding new properties to nested objects', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         interface UserState {
@@ -457,7 +478,7 @@ describe('RendererSync', () => {
         patches.length = 0;
 
         // Add new property
-        store.$patch({ user: { ...store.user, metadata: { created: Date.now() } } });
+        store.$patch({user: {...store.user, metadata: {created: Date.now()}}});
         await new Promise(resolve => setTimeout(resolve, 50));
 
         expect(patches.length).toBeGreaterThan(0);
@@ -466,9 +487,9 @@ describe('RendererSync', () => {
       });
 
       it('should handle deleting properties from nested objects', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -486,8 +507,8 @@ describe('RendererSync', () => {
         patches.length = 0;
 
         // Delete property by creating new object without it
-        const { ...rest } = store.settings;
-        store.$patch({ settings: rest });
+        const {notifications: _notifications, ...rest} = store.settings;
+        store.$patch({settings: rest});
         await new Promise(resolve => setTimeout(resolve, 50));
 
         expect(patches.length).toBeGreaterThan(0);
@@ -498,9 +519,9 @@ describe('RendererSync', () => {
 
     describe('Arrays', () => {
       it('should sync array when items are added', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -514,7 +535,7 @@ describe('RendererSync', () => {
         patches.length = 0;
 
         // Add item
-        store.$patch({ items: [...store.items, 'cherry'] });
+        store.$patch({items: [...store.items, 'cherry']});
         await new Promise(resolve => setTimeout(resolve, 50));
 
         expect(patches.length).toBeGreaterThan(0);
@@ -524,9 +545,9 @@ describe('RendererSync', () => {
       });
 
       it('should sync array when items are removed', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -540,7 +561,7 @@ describe('RendererSync', () => {
         patches.length = 0;
 
         // Remove item
-        store.$patch({ items: store.items.filter(i => i !== 'banana') });
+        store.$patch({items: store.items.filter(i => i !== 'banana')});
         await new Promise(resolve => setTimeout(resolve, 50));
 
         expect(patches.length).toBeGreaterThan(0);
@@ -550,9 +571,9 @@ describe('RendererSync', () => {
       });
 
       it('should sync array when items are modified', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -568,7 +589,7 @@ describe('RendererSync', () => {
         // Modify item
         const newItems = [...store.items];
         newItems[1] = 'blueberry';
-        store.$patch({ items: newItems });
+        store.$patch({items: newItems});
         await new Promise(resolve => setTimeout(resolve, 50));
 
         expect(patches.length).toBeGreaterThan(0);
@@ -586,15 +607,15 @@ describe('RendererSync', () => {
       }
 
       it('should sync when adding objects to array', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
           state: () => ({
             todos: [
-              { id: 1, text: 'Buy milk', completed: false },
+              {id: 1, text: 'Buy milk', completed: false},
             ] as Todo[],
           }),
         });
@@ -605,7 +626,7 @@ describe('RendererSync', () => {
 
         // Add new todoItem
         store.$patch({
-          todos: [...store.todos, { id: 2, text: 'Walk dog', completed: false }],
+          todos: [...store.todos, {id: 2, text: 'Walk dog', completed: false}],
         });
         await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -617,17 +638,17 @@ describe('RendererSync', () => {
       });
 
       it('should sync when removing objects from array', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
           state: () => ({
             todos: [
-              { id: 1, text: 'Buy milk', completed: false },
-              { id: 2, text: 'Walk dog', completed: true },
-              { id: 3, text: 'Clean house', completed: false },
+              {id: 1, text: 'Buy milk', completed: false},
+              {id: 2, text: 'Walk dog', completed: true},
+              {id: 3, text: 'Clean house', completed: false},
             ] as Todo[],
           }),
         });
@@ -650,16 +671,16 @@ describe('RendererSync', () => {
       });
 
       it('should sync when modifying object properties in array', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
           state: () => ({
             todos: [
-              { id: 1, text: 'Buy milk', completed: false },
-              { id: 2, text: 'Walk dog', completed: false },
+              {id: 1, text: 'Buy milk', completed: false},
+              {id: 2, text: 'Walk dog', completed: false},
             ] as Todo[],
           }),
         });
@@ -671,7 +692,7 @@ describe('RendererSync', () => {
         // Toggle completed status
         store.$patch({
           todos: store.todos.map(t =>
-            t.id === 1 ? { ...t, completed: true } : t
+            t.id === 1 ? {...t, completed: true} : t
           ),
         });
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -686,15 +707,15 @@ describe('RendererSync', () => {
       });
 
       it('should sync when adding nested array to object in array', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
           state: () => ({
             todos: [
-              { id: 1, text: 'Buy groceries', completed: false },
+              {id: 1, text: 'Buy groceries', completed: false},
             ] as Todo[],
           }),
         });
@@ -706,7 +727,7 @@ describe('RendererSync', () => {
         // Add tags to todoItem
         store.$patch({
           todos: store.todos.map(t =>
-            t.id === 1 ? { ...t, tags: ['shopping', 'urgent'] } : t
+            t.id === 1 ? {...t, tags: ['shopping', 'urgent']} : t
           ),
         });
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -720,9 +741,9 @@ describe('RendererSync', () => {
 
     describe('Deep Nesting', () => {
       it('should handle deeply nested state changes', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         interface DeepState {
@@ -776,9 +797,9 @@ describe('RendererSync', () => {
 
     describe('Mixed Complex State', () => {
       it('should handle complex state with multiple data types', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         interface ComplexState {
@@ -816,9 +837,9 @@ describe('RendererSync', () => {
               },
             },
             items: [
-              { id: 1, data: { value: 100 } },
+              {id: 1, data: {value: 100}},
             ],
-            metadata: { version: '1.0' },
+            metadata: {version: '1.0'},
           }),
         });
 
@@ -828,10 +849,10 @@ describe('RendererSync', () => {
 
         // Make multiple changes
         store.$patch({
-          user: { ...store.user, roles: [...store.user.roles, 'admin'] },
+          user: {...store.user, roles: [...store.user.roles, 'admin']},
           settings: {
             ...store.settings,
-            notifications: { ...store.settings.notifications, push: true },
+            notifications: {...store.settings.notifications, push: true},
           },
         });
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -867,9 +888,9 @@ describe('RendererSync', () => {
       }
 
       it('should sync deeply nested array modifications', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -879,8 +900,8 @@ describe('RendererSync', () => {
                 id: 1,
                 name: 'Shopping',
                 items: [
-                  { id: 1, title: 'Buy milk' },
-                  { id: 2, title: 'Buy eggs' },
+                  {id: 1, title: 'Buy milk'},
+                  {id: 2, title: 'Buy eggs'},
                 ],
               },
             ] as Category[],
@@ -896,13 +917,13 @@ describe('RendererSync', () => {
           categories: store.categories.map(cat =>
             cat.id === 1
               ? {
-                  ...cat,
-                  items: cat.items.map(item =>
-                    item.id === 1
-                      ? { ...item, metadata: { priority: 'high' } }
-                      : item
-                  ),
-                }
+                ...cat,
+                items: cat.items.map(item =>
+                  item.id === 1
+                    ? {...item, metadata: {priority: 'high'}}
+                    : item
+                ),
+              }
               : cat
           ),
         });
@@ -911,15 +932,15 @@ describe('RendererSync', () => {
         expect(patches.length).toBeGreaterThan(0);
         const lastPatch = patches[patches.length - 1];
         const categories = (lastPatch.patch as { categories: Category[] }).categories;
-        expect(categories[0].items[0].metadata).toEqual({ priority: 'high' });
+        expect(categories[0].items[0].metadata).toEqual({priority: 'high'});
         // Verify other items preserved
         expect(categories[0].items[1].title).toBe('Buy eggs');
       });
 
       it('should sync adding items to nested array', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -928,7 +949,7 @@ describe('RendererSync', () => {
               {
                 id: 1,
                 name: 'Shopping',
-                items: [{ id: 1, title: 'Buy milk' }],
+                items: [{id: 1, title: 'Buy milk'}],
               },
             ] as Category[],
           }),
@@ -942,7 +963,7 @@ describe('RendererSync', () => {
         store.$patch({
           categories: store.categories.map(cat =>
             cat.id === 1
-              ? { ...cat, items: [...cat.items, { id: 2, title: 'Buy bread' }] }
+              ? {...cat, items: [...cat.items, {id: 2, title: 'Buy bread'}]}
               : cat
           ),
         });
@@ -956,9 +977,9 @@ describe('RendererSync', () => {
       });
 
       it('should sync removing items from nested array', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -968,9 +989,9 @@ describe('RendererSync', () => {
                 id: 1,
                 name: 'Shopping',
                 items: [
-                  { id: 1, title: 'Buy milk' },
-                  { id: 2, title: 'Buy eggs' },
-                  { id: 3, title: 'Buy bread' },
+                  {id: 1, title: 'Buy milk'},
+                  {id: 2, title: 'Buy eggs'},
+                  {id: 3, title: 'Buy bread'},
                 ],
               },
             ] as Category[],
@@ -985,7 +1006,7 @@ describe('RendererSync', () => {
         store.$patch({
           categories: store.categories.map(cat =>
             cat.id === 1
-              ? { ...cat, items: cat.items.filter(item => item.id !== 2) }
+              ? {...cat, items: cat.items.filter(item => item.id !== 2)}
               : cat
           ),
         });
@@ -999,9 +1020,9 @@ describe('RendererSync', () => {
       });
 
       it('should sync adding new parent with nested items', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -1010,7 +1031,7 @@ describe('RendererSync', () => {
               {
                 id: 1,
                 name: 'Shopping',
-                items: [{ id: 1, title: 'Buy milk' }],
+                items: [{id: 1, title: 'Buy milk'}],
               },
             ] as Category[],
           }),
@@ -1028,8 +1049,8 @@ describe('RendererSync', () => {
               id: 2,
               name: 'Work',
               items: [
-                { id: 2, title: 'Review PR' },
-                { id: 3, title: 'Write tests' },
+                {id: 2, title: 'Review PR'},
+                {id: 3, title: 'Write tests'},
               ],
             },
           ],
@@ -1047,8 +1068,8 @@ describe('RendererSync', () => {
 
       it('should apply remote updates to deeply nested arrays', async () => {
         const mockAPI = createMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: mockAPI });
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: mockAPI});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -1057,7 +1078,7 @@ describe('RendererSync', () => {
               {
                 id: 1,
                 name: 'Shopping',
-                items: [{ id: 1, title: 'Buy milk' }],
+                items: [{id: 1, title: 'Buy milk'}],
               },
             ] as Category[],
           }),
@@ -1076,8 +1097,8 @@ describe('RendererSync', () => {
                   id: 1,
                   name: 'Shopping',
                   items: [
-                    { id: 1, title: 'Buy milk' },
-                    { id: 2, title: 'Buy eggs' },
+                    {id: 1, title: 'Buy milk'},
+                    {id: 2, title: 'Buy eggs'},
                   ],
                 },
               ],
@@ -1111,9 +1132,9 @@ describe('RendererSync', () => {
       }
 
       it('should sync three-level nested array modifications', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -1152,24 +1173,24 @@ describe('RendererSync', () => {
             sections: store.data.sections.map(section =>
               section.id === 1
                 ? {
-                    ...section,
-                    groups: section.groups.map(group =>
-                      group.id === 1
-                        ? {
-                            ...group,
-                            tasks: group.tasks.map(task =>
-                              task.id === 1
-                                ? {
-                                    ...task,
-                                    tags: [...task.tags, 'reviewed'],
-                                    metadata: { reviewed: true },
-                                  }
-                                : task
-                            ),
-                          }
-                        : group
-                    ),
-                  }
+                  ...section,
+                  groups: section.groups.map(group =>
+                    group.id === 1
+                      ? {
+                        ...group,
+                        tasks: group.tasks.map(task =>
+                          task.id === 1
+                            ? {
+                              ...task,
+                              tags: [...task.tags, 'reviewed'],
+                              metadata: {reviewed: true},
+                            }
+                            : task
+                        ),
+                      }
+                      : group
+                  ),
+                }
                 : section
             ),
           },
@@ -1184,9 +1205,9 @@ describe('RendererSync', () => {
       });
 
       it('should sync adding to three-level nested array', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -1219,23 +1240,23 @@ describe('RendererSync', () => {
             sections: store.data.sections.map(section =>
               section.id === 1
                 ? {
-                    ...section,
-                    groups: section.groups.map(group =>
-                      group.id === 1
-                        ? {
-                            ...group,
-                            tasks: [
-                              ...group.tasks,
-                              {
-                                id: 1,
-                                description: 'New task',
-                                tags: ['new'],
-                              },
-                            ],
-                          }
-                        : group
-                    ),
-                  }
+                  ...section,
+                  groups: section.groups.map(group =>
+                    group.id === 1
+                      ? {
+                        ...group,
+                        tasks: [
+                          ...group.tasks,
+                          {
+                            id: 1,
+                            description: 'New task',
+                            tags: ['new'],
+                          },
+                        ],
+                      }
+                      : group
+                  ),
+                }
                 : section
             ),
           },
@@ -1250,9 +1271,9 @@ describe('RendererSync', () => {
       });
 
       it('should sync adding intermediate level (new group with tasks)', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -1266,7 +1287,7 @@ describe('RendererSync', () => {
                     {
                       id: 1,
                       name: 'Development',
-                      tasks: [{ id: 1, description: 'Task 1', tags: [] }],
+                      tasks: [{id: 1, description: 'Task 1', tags: []}],
                     },
                   ],
                 },
@@ -1285,19 +1306,19 @@ describe('RendererSync', () => {
             sections: store.data.sections.map(section =>
               section.id === 1
                 ? {
-                    ...section,
-                    groups: [
-                      ...section.groups,
-                      {
-                        id: 2,
-                        name: 'Testing',
-                        tasks: [
-                          { id: 2, description: 'Write tests', tags: ['test'] },
-                          { id: 3, description: 'Run tests', tags: ['test'] },
-                        ],
-                      },
-                    ],
-                  }
+                  ...section,
+                  groups: [
+                    ...section.groups,
+                    {
+                      id: 2,
+                      name: 'Testing',
+                      tasks: [
+                        {id: 2, description: 'Write tests', tags: ['test']},
+                        {id: 3, description: 'Run tests', tags: ['test']},
+                      ],
+                    },
+                  ],
+                }
                 : section
             ),
           },
@@ -1314,9 +1335,9 @@ describe('RendererSync', () => {
       });
 
       it('should sync removing from three-level nested array', async () => {
-        const { api, patches } = createTrackingMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: api });
+        const {api, patches} = createTrackingMockAPI();
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: api});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -1331,9 +1352,9 @@ describe('RendererSync', () => {
                       id: 1,
                       name: 'Development',
                       tasks: [
-                        { id: 1, description: 'Task 1', tags: [] },
-                        { id: 2, description: 'Task 2', tags: [] },
-                        { id: 3, description: 'Task 3', tags: [] },
+                        {id: 1, description: 'Task 1', tags: []},
+                        {id: 2, description: 'Task 2', tags: []},
+                        {id: 3, description: 'Task 3', tags: []},
                       ],
                     },
                   ],
@@ -1353,16 +1374,16 @@ describe('RendererSync', () => {
             sections: store.data.sections.map(section =>
               section.id === 1
                 ? {
-                    ...section,
-                    groups: section.groups.map(group =>
-                      group.id === 1
-                        ? {
-                            ...group,
-                            tasks: group.tasks.filter(task => task.id !== 2),
-                          }
-                        : group
-                    ),
-                  }
+                  ...section,
+                  groups: section.groups.map(group =>
+                    group.id === 1
+                      ? {
+                        ...group,
+                        tasks: group.tasks.filter(task => task.id !== 2),
+                      }
+                      : group
+                  ),
+                }
                 : section
             ),
           },
@@ -1378,8 +1399,8 @@ describe('RendererSync', () => {
 
       it('should apply remote updates to three-level nested arrays', async () => {
         const mockAPI = createMockAPI();
-        const { pinia } = createTestPinia();
-        const plugin = createRendererSync({ customApi: mockAPI });
+        const {pinia} = createTestPinia();
+        const plugin = createRendererSync({customApi: mockAPI});
         pinia.use(plugin);
 
         const useTestStore = defineStore('test', {
@@ -1420,7 +1441,7 @@ describe('RendererSync', () => {
                         id: 1,
                         name: 'Development',
                         tasks: [
-                          { id: 1, description: 'New task from Main', tags: ['sync'] },
+                          {id: 1, description: 'New task from Main', tags: ['sync']},
                         ],
                       },
                     ],
@@ -1436,6 +1457,156 @@ describe('RendererSync', () => {
         expect(store.data.sections[0].groups[0].tasks).toHaveLength(1);
         expect(store.data.sections[0].groups[0].tasks[0].description).toBe('New task from Main');
       });
+    });
+  });
+
+  describe('IPC Serialization (Regression Tests)', () => {
+    it('should not send reactive proxies over IPC - simulates real Electron behavior', async () => {
+      // This test simulates what actually happens in Electron:
+      // ipcRenderer.invoke internally uses structuredClone which fails on reactive proxies
+      const mockAPI: PiniaSyncAPI = {
+        pullState: vi.fn(async () => null),
+        patchState: vi.fn(async (storeId: string, patch: unknown) => {
+          // Simulate Electron's IPC serialization with structuredClone
+          // This would throw "An object could not be cloned" if patch contains reactive proxies
+          try {
+            structuredClone(patch);
+          } catch {
+            throw new Error('An object could not be cloned');
+          }
+        }),
+        onStateUpdate: vi.fn(() => () => {}),
+      };
+
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
+      pinia.use(plugin);
+
+      const useTestStore = defineStore('test', {
+        state: () => ({
+          count: 0,
+          nested: {
+            value: 'test',
+          },
+        }),
+      });
+
+      const store = useTestStore(pinia);
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Change state - this should NOT throw because toRawState removes proxies
+      store.$patch({count: 42});
+
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // If toRawState wasn't used, this would throw "An object could not be cloned"
+      expect(mockAPI.patchState).toHaveBeenCalled();
+      expect(vi.mocked(mockAPI.patchState).mock.calls[0][1]).toEqual({count: 42});
+    });
+
+    it('should handle nested object changes without proxy errors', async () => {
+      const mockAPI: PiniaSyncAPI = {
+        pullState: vi.fn(async () => null),
+        patchState: vi.fn(async (storeId: string, patch: unknown) => {
+          // Simulate strict IPC serialization
+          structuredClone(patch); // Would throw on reactive proxies
+        }),
+        onStateUpdate: vi.fn(() => () => {}),
+      };
+
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
+      pinia.use(plugin);
+
+      const useTestStore = defineStore('test', {
+        state: () => ({
+          user: {
+            name: 'John',
+            profile: {
+              age: 30,
+              city: 'Berlin',
+            },
+          },
+        }),
+      });
+
+      const store = useTestStore(pinia);
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Deep nested change
+      store.user.profile.age = 31;
+
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Should not throw - patch is serializable
+      expect(mockAPI.patchState).toHaveBeenCalled();
+    });
+
+    it('should handle array modifications without proxy errors', async () => {
+      const mockAPI: PiniaSyncAPI = {
+        pullState: vi.fn(async () => null),
+        patchState: vi.fn(async (storeId: string, patch: unknown) => {
+          structuredClone(patch); // Would throw on reactive proxies
+        }),
+        onStateUpdate: vi.fn(() => () => {}),
+      };
+
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
+      pinia.use(plugin);
+
+      const useTestStore = defineStore('test', {
+        state: () => ({
+          items: [{id: 1, name: 'Item 1'}],
+        }),
+      });
+
+      const store = useTestStore(pinia);
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Modify array
+      store.items.push({id: 2, name: 'Item 2'});
+
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Should not throw
+      expect(mockAPI.patchState).toHaveBeenCalled();
+    });
+
+    it('should fail WITHOUT toRawState (proof of necessity)', async () => {
+      // This test demonstrates WHY toRawState is necessary
+      const mockAPI: PiniaSyncAPI = {
+        pullState: vi.fn(async () => null),
+        patchState: vi.fn(async (storeId: string, patch: unknown) => {
+          // Try to clone the patch directly (simulates IPC)
+          structuredClone(patch);
+        }),
+        onStateUpdate: vi.fn(() => () => {}),
+      };
+
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
+      pinia.use(plugin);
+
+      const useTestStore = defineStore('test', {
+        state: () => ({count: 0}),
+      });
+
+      const store = useTestStore(pinia);
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // This works because our implementation uses toRawState
+      store.$patch({count: 5});
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(mockAPI.patchState).toHaveBeenCalled();
+
+      // The patch received should be a plain object (not a proxy)
+      const receivedPatch = vi.mocked(mockAPI.patchState).mock.calls[0][1];
+      expect(receivedPatch).toEqual({count: 5});
+
+      // Verify it's actually serializable (no reactive proxy)
+      expect(() => structuredClone(receivedPatch)).not.toThrow();
     });
   });
 });

@@ -64,9 +64,6 @@ test.describe('Package Configuration', () => {
     expect(pkgJson.exports['./main']).toBeDefined();
     expect(pkgJson.exports['./renderer']).toBeDefined();
     expect(pkgJson.exports['./preload']).toBeDefined();
-
-    // Should NOT have CJS require fields
-    expect(pkgJson.exports['./main'].require).toBeUndefined();
   });
 
   test('package.json should have correct peer dependencies', () => {

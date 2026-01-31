@@ -17,7 +17,6 @@ pnpm install
 # Run the app
 pnpm start
 ```
-
 ## File Structure
 
 ```

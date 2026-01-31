@@ -71,7 +71,7 @@ const mainSync = createMainSync({
 });
 
 // Get the Pinia instance
-const pinia = mainSync.getPinia();
+const store = mainSync.getPinia();
 
 // Define your store
 const useCounterStore = defineStore('counter', {
@@ -87,7 +87,7 @@ const useCounterStore = defineStore('counter', {
 });
 
 // Create and register the store
-const counterStore = useCounterStore(pinia);
+const counterStore = useCounterStore(store);
 mainSync.registerStore('counter', counterStore, {
   persist: true, // Enable persistence for this store
 });
@@ -378,6 +378,31 @@ counter.increment(); // void
 3. **State Size**: Keep state size reasonable for IPC transfer performance
 4. **Actions**: Actions can be defined only in Renderer (they're not synced, only state is)
 5. **Initialization**: Wait for store initialization before using in components
+
+## Debugging
+
+Enable debug logging to see synchronization details:
+
+**Main Process:**
+```typescript
+const mainSync = createMainSync({
+  debug: true, // or 'verbose' for detailed logs
+});
+```
+
+**Renderer Process:**
+```typescript
+pinia.use(createRendererSync({
+  debug: 'verbose', // Shows state diffs and patches
+}));
+```
+
+**Debug Levels:**
+- `false` (default): Only errors/warnings
+- `true`: Important operations
+- `'verbose'`: Detailed logs with state diffs
+
+For advanced debugging, see [DEBUG.md](./DEBUG.md).
 
 ## Troubleshooting
 

@@ -5,6 +5,11 @@
 import type { StateTree } from 'pinia';
 
 /**
+ * Debug level configuration
+ */
+export type DebugLevel = boolean | 'verbose' | 'minimal';
+
+/**
  * IPC Channel names for communication between processes
  */
 export const IPC_CHANNELS = {

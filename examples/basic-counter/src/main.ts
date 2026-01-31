@@ -33,6 +33,8 @@ function createWindow() {
 function initializePiniaSync() {
   // Create the Main sync manager
   mainSync = createMainSync({
+    // Enable debug mode during development
+    debug: process.env.DEBUG ? 'verbose' : false,
     storeOptions: {
       name: 'counter-example-store',
     },

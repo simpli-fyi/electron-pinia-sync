@@ -122,3 +122,22 @@ Verwende für Updates immer den Git-getriebenen Workflow. Das stellt sicher, das
 | **"OTP required"** | NPM erzwingt 2FA. Bei CLI-Publish musst du den Code vom Handy eingeben. |
 | **"403 Forbidden"** | Dein Granular Token ist abgelaufen oder hat keine Berechtigung für dieses Package. |
 | **"Version conflict"** | Die Version in `package.json` wurde bereits veröffentlicht. Nutze `npm version`. |
+
+
+TESTING:
+
+Dieser Weg erstellt einen symbolischen Link (Symlink) in deinem globalen NPM-Ordner, der auf dein lokales Plugin zeigt.
+
+1. Im Plugin-Verzeichnis (electron-pinia-sync): Baue das Paket zuerst, damit der dist-Ordner aktuell ist, und verlinke es dann global.
+
+
+```Bash
+npm run build
+npm link
+```
+2. Im Hauptprojekt (deine Electron/Vue App): Verknüpfe das global verlinkte Paket nun mit deinem Projekt.
+
+```Bash
+npm link electron-pinia-sync
+```
+Der Vorteil: Wenn du im Plugin Code änderst und npm run build ausführst, sind die Änderungen sofort im Hauptprojekt verfügbar, ohne dass du neu installieren musst.

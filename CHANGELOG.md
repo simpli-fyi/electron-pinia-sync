@@ -28,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical Details
 
-- **ESM-Only**: Modern ES Modules build (no CommonJS)
 - **Pinia 3.0**: Full support for Pinia v3
 - **Node.js 20+**: Requires Node.js 20 or higher
 - **TypeScript 5.7**: Built with latest TypeScript
