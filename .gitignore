@@ -40,13 +40,6 @@ Thumbs.db
 *.temp
 .cache/
 
-# electron-store test data
-*.json
-!package.json
-!tsconfig.json
-!tsconfig.eslint.json
-!vitest.config.ts
-
 # tests
 playwright-report
 
