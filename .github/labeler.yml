@@ -1,0 +1,40 @@
+# Label PRs based on changed files
+
+# Documentation changes
+documentation:
+  - changed-files:
+    - any-glob-to-any-file: ['**/*.md', 'docs/**/*']
+
+# Source code changes
+main-process:
+  - changed-files:
+    - any-glob-to-any-file: 'src/main/**/*'
+
+renderer-process:
+  - changed-files:
+    - any-glob-to-any-file: 'src/renderer/**/*'
+
+preload:
+  - changed-files:
+    - any-glob-to-any-file: 'src/preload/**/*'
+
+# Tests
+tests:
+  - changed-files:
+    - any-glob-to-any-file: ['src/__tests__/**/*', 'e2e/**/*', '**/*.test.ts', '**/*.spec.ts']
+
+# Build/CI
+ci:
+  - changed-files:
+    - any-glob-to-any-file: ['.github/**/*', 'tsup.config.ts', 'vitest.config.ts', 'playwright.config.ts']
+
+# Dependencies
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file: ['package.json', 'package-lock.json']
+
+# Examples
+examples:
+  - changed-files:
+    - any-glob-to-any-file: 'examples/**/*'
+

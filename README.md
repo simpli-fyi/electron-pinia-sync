@@ -13,7 +13,7 @@
 - 🔒 **Type-Safe**: Full TypeScript support with strict mode
 - 🚀 **Zero Config**: Works out of the box with sensible defaults
 - 🔁 **Echo Prevention**: Intelligent transaction tracking prevents infinite loops
-- 📦 **ESM-Only**: Modern ES Modules build (~4 KB per module)
+- 📦 **Dual Package**: ESM and CommonJS builds (~4 KB per module)
 - ⚡ **Performance**: Efficient diffing with `microdiff` minimizes data transfer
 
 ## Installation

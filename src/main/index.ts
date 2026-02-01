@@ -233,7 +233,5 @@ export function createMainSync(options?: MainSyncOptions): MainSync {
 }
 
 // Export debug utilities for advanced users
-export { createDebugLogger, formatStateForDebug, formatPatchForDebug } from '../debug.js';
-export type { DebugLevel, DebugLogger } from '../debug.js';
-
-console.log('main sync plugin loaded');
+export {createDebugLogger, formatStateForDebug, formatPatchForDebug} from '../debug.js';
+export type {DebugLevel, DebugLogger} from '../debug.js';

@@ -1,23 +1,37 @@
 import { defineConfig } from 'tsup';
 
-export default defineConfig({
-  // ESM-only output
-  format: ['esm'],
-  // Mark all peer dependencies and dependencies as external
-  external: [
-    'electron',
-    'pinia',
-    'vue',
-    'electron-store',
-    'microdiff',
-  ],
-  // Ensure node modules are not bundled
-  noExternal: [],
-  // Platform-specific settings
-  platform: 'node',
-  // Additional settings
-  splitting: false,
-  treeshake: true,
-  clean: false, // Managed by individual build commands
-});
-
+export default defineConfig([
+  // 1. MAIN PROCESS
+  {
+    entry: { index: 'src/main/index.ts' },
+    format: ['cjs', 'esm'],
+    outDir: 'dist/main',
+    platform: 'node',
+    external: ['electron', 'pinia', 'electron-store'],
+    noExternal: ['microdiff'],
+    dts: true,
+    clean: true,
+  },
+  // 2. PRELOAD SCRIPT (Standalone-Build für Electron Sandbox)
+  {
+    entry: { index: 'src/preload/index.ts' },
+    format: ['cjs', 'esm'],
+    outDir: 'dist/preload',
+    platform: 'node',
+    external: ['electron'],
+    noExternal: ['microdiff'],
+    dts: true,
+    clean: true,
+  },
+  // 3. RENDERER PROCESS
+  {
+    entry: { index: 'src/renderer/index.ts' },
+    format: ['cjs', 'esm'],
+    outDir: 'dist/renderer',
+    platform: 'browser',
+    external: ['pinia', 'vue', 'electron'],
+    noExternal: ['microdiff'],
+    dts: true,
+    clean: true,
+  }
+]);

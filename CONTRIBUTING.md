@@ -2,24 +2,52 @@
 
 Thank you for your interest in contributing! This guide will help you get started with local development.
 
+> 🚀 **New to contributing?** Check out our [Quick Start Guide](.github/CONTRIBUTING-QUICK-START.md) for a condensed version!
+
+**Important for External Contributors:**
+- The `main` branch is protected - you cannot push directly to it
+- All contributions must go through Pull Requests
+- All CI checks must pass before a PR can be merged
+- Use [Conventional Commits](https://www.conventionalcommits.org/) format for all commits
+- CHANGELOG.md is auto-generated - do not edit it manually
+
+## Quick Start for Contributors
+
+1. **Fork** the repository on GitHub
+2. **Clone** your fork locally
+3. **Create a feature branch** from `develop` (or `main`)
+4. **Make your changes** and commit using conventional commit format
+5. **Push** to your fork
+6. **Open a Pull Request** to the original repository
+
 ## Development Setup
 
 ### Prerequisites
 
 - Node.js >= 20.0.0
-- npm
+- npm >= 10.x
 - Git
 
 ### Initial Setup
 
-1. **Fork and Clone**
+1. **Fork the Repository**
+
+Visit [https://github.com/simpli-fyi/electron-pinia-sync](https://github.com/simpli-fyi/electron-pinia-sync) and click the "Fork" button.
+
+2. **Clone Your Fork**
 
 ```bash
-git clone https://github.com/simpli-fyi/electron-pinia-sync.git
+git clone https://github.com/YOUR_USERNAME/electron-pinia-sync.git
 cd electron-pinia-sync
 ```
 
-2. **Install Dependencies**
+3. **Add Upstream Remote**
+
+```bash
+git remote add upstream https://github.com/simpli-fyi/electron-pinia-sync.git
+```
+
+4. **Install Dependencies**
 
 ```bash
 npm install
@@ -61,13 +89,6 @@ Build all modules:
 npm run build
 ```
 
-Build specific modules:
-
-```bash
-npm run build:main
-npm run build:renderer
-npm run build:preload
-```
 
 Watch mode for development:
 
@@ -212,29 +233,72 @@ export function createMainSync(options?: MainSyncOptions): MainSync {
 
 ### Before Submitting
 
-1. **Create a feature branch**
+1. **Sync Your Fork** (important!)
+
+```bash
+git fetch upstream
+git checkout main
+git merge upstream/main
+git push origin main
+```
+
+2. **Create a Feature Branch**
 
 ```bash
 git checkout -b feature/your-feature-name
+# or
+git checkout -b fix/your-bug-fix
 ```
 
-2. **Make your changes**
+3. **Make Your Changes**
    - Write code
    - Add/update tests
-   - Update documentation
+   - Update documentation (README.md if API changes)
+   - Use conventional commit format (see below)
 
-3. **Run quality checks**
+4. **Run Quality Checks**
 
 ```bash
-npm run typecheck
-npm run lint
-npm test
+npm run typecheck  # Must pass
+npm run lint       # Must pass (use lint:fix for auto-fixes)
+npm test           # Must pass
+npm run build      # Must succeed
 ```
 
-4. **Build the project**
+5. **Commit Your Changes**
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 
 ```bash
-npm run build
+git add .
+git commit -m "feat: add support for encrypted storage"
+# or
+git commit -m "fix: prevent race condition during initialization"
+```
+
+6. **Push to Your Fork**
+
+```bash
+git push origin feature/your-feature-name
+```
+
+7. **Create Pull Request**
+
+- Go to your fork on GitHub
+- Click "New Pull Request"
+- Select your feature branch
+- Fill out the PR template
+- Click "Create Pull Request"
+
+### Keeping Your Fork Updated
+
+Before starting new work, always sync with upstream:
+
+```bash
+git checkout main
+git fetch upstream
+git merge upstream/main
+git push origin main
 ```
 
 ### PR Guidelines
@@ -363,41 +427,100 @@ This project uses **Conventional Commits**. This is crucial because our release 
 
 ---
 
+## GitHub Workflows
+
+This project uses several automated workflows to ensure code quality and streamline releases. Understanding these workflows helps you contribute effectively.
+
+### For Contributors
+
+When you submit a Pull Request, the following automated checks will run:
+
+#### 1. **CI Workflow** (`.github/workflows/ci.yml`)
+Runs on every push and PR to `main` and `develop` branches.
+
+**What it does:**
+- Tests on Node.js 20.x and 22.x
+- Runs TypeScript type checking
+- Runs ESLint
+- Runs unit tests
+- Builds the package
+
+**How to fix failures:**
+```bash
+npm run typecheck  # Fix TypeScript errors
+npm run lint:fix   # Fix linting issues
+npm test           # Fix test failures
+npm run build      # Fix build issues
+```
+
+#### 2. **E2E Tests Workflow** (`.github/workflows/e2e.yml`)
+Runs end-to-end tests on Ubuntu, macOS, and Windows.
+
+**What it does:**
+- Builds the library
+- Installs Playwright
+- Runs E2E tests across different operating systems
+
+**How to run locally:**
+```bash
+npm run build
+npm run test:e2e
+```
+
+### Branch Protection
+
+The `main` branch is protected and requires:
+- ✅ All CI checks to pass
+- ✅ At least one maintainer approval
+- ✅ Up-to-date with base branch
+- ✅ No direct pushes (must use Pull Requests)
+
+**Important:** You cannot push directly to `main`. Always work in a feature branch and create a Pull Request.
+
 ## Release Process
 
 (For maintainers)
 
-1. Update CHANGELOG.md
-2. Create a git tag
-3. Push to GitHub
-4. Create Pull Request to `main`
-
-```bash
-npm version patch|minor|major
-git push --follow-tags
-```
-
-We use **Semantic Release** to automate our versioning and package publishing. You don't need to manually update the version in `package.json` or write a `CHANGELOG.md`.
+We use **Semantic Release** to fully automate versioning and publishing. You **do not** need to manually update `package.json` or `CHANGELOG.md`.
 
 ### How it works
 
 1. **Merge to Main**: Once a Pull Request is merged into the `main` branch, a GitHub Action is triggered.
-2. **Analysis**: Semantic Release analyzes all new commits since the last tag.
-3. **Versioning**:
-* It determines the next version number based on the commit types.
-* It updates the `version` field in `package.json`.
-* It generates/updates the `CHANGELOG.md`.
+2. **Semantic Release** (`.github/workflows/prepare-release.yml`):
+   - Analyzes all new commits since the last tag
+   - Determines the next version based on commit types
+   - Updates `package.json` and `package-lock.json`
+   - Generates/updates `CHANGELOG.md`
+   - Creates a Git tag (e.g., `v1.1.0`)
+   - Creates a GitHub Release
+3. **NPM Publish** (`.github/workflows/publish.yml`):
+   - Triggered when a new GitHub Release is created
+   - Runs all tests and quality checks
+   - Publishes to NPM with provenance
+   - Requires `NPM_TOKEN` secret
 
+### Version Bumping Rules
 
-4. **Tagging**: A new Git tag (e.g., `v1.1.0`) is created and pushed.
-5. **GitHub Release**: A GitHub Release is created with the generated release notes.
-6. **NPM Publish**: Our secondary workflow detects the new GitHub Release and automatically publishes the package to the NPM registry with provenance.
+The commit type determines the version bump:
+- **`fix:`** → Patch version (1.0.0 → 1.0.1)
+- **`feat:`** → Minor version (1.0.0 → 1.1.0)
+- **`feat!:`** or **`BREAKING CHANGE:`** → Major version (1.0.0 → 2.0.0)
+- **`chore:`, `docs:`, `style:`, `refactor:`, `test:`** → No release
 
 ### For Maintainers
 
-If you need to trigger a release manually without a code change (rarely needed), you can use a "chore" commit, but keep in mind that only `feat` and `fix` trigger an actual version bump by default.
+**Skip a release:**
+Include `[skip ci]` in your commit message.
 
-To skip a release for a specific push to main, include `[skip ci]` in your commit message.
+**Manual release (rarely needed):**
+Semantic Release runs automatically on every merge to `main`. Manual releases should not be necessary.
+
+### Dependabot
+
+Dependabot automatically creates PRs for dependency updates:
+- **npm packages:** Weekly
+- **GitHub Actions:** Monthly
+- Dependencies are grouped (dev vs core) for easier review
 
 ## Getting Help
 

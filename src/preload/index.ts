@@ -3,9 +3,9 @@
  * Uses contextBridge for secure IPC communication
  */
 
-import { contextBridge, ipcRenderer } from 'electron';
-import type { IpcRendererEvent } from 'electron';
-import type { StateTree } from 'pinia';
+import {contextBridge, ipcRenderer} from 'electron';
+import type {IpcRendererEvent} from 'electron';
+import type {StateTree} from 'pinia';
 import type {
   PiniaSyncAPI,
   StatePatchMessage,
@@ -13,7 +13,7 @@ import type {
   StatePullRequest,
   StatePullResponse,
 } from '../types.js';
-import { IPC_CHANNELS } from '../types.js';
+import {IPC_CHANNELS} from '../types.js';
 
 /**
  * API exposed to renderer process via window.piniaSync
@@ -24,7 +24,7 @@ const piniaSyncAPI: PiniaSyncAPI = {
    */
   async pullState(storeId: string) {
     console.log(`[preload] IPC invoke: ${IPC_CHANNELS.STATE_PULL} for store "${storeId}"`);
-    const request: StatePullRequest = { storeId };
+    const request: StatePullRequest = {storeId};
     const response = await ipcRenderer.invoke(
       IPC_CHANNELS.STATE_PULL,
       request
@@ -76,6 +76,3 @@ contextBridge.exposeInMainWorld('piniaSync', piniaSyncAPI);
 console.log('[preload] piniaSync API exposed to window');
 
 // TypeScript type augmentation is in types.ts
-
-console.log('[preload] electron-pinia-sync preload script initialized');
-

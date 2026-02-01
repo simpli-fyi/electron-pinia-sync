@@ -4,6 +4,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
     open-pull-requests-limit: 10
     groups:
       devDependencies:
@@ -12,12 +13,27 @@ updates:
           - "eslint*"
           - "typescript*"
           - "vitest*"
+          - "@vitest/*"
+          - "playwright"
+          - "@playwright/*"
+          - "tsup"
+          - "tsx"
+        update-types:
+          - "minor"
+          - "patch"
       coreDependencies:
         patterns:
-          - "electron*"
-          - "vue"
-          - "pinia"
+          - "electron-store"
+          - "microdiff"
+        update-types:
+          - "minor"
+          - "patch"
+    # Security updates are always created immediately
+    security-updates:
+      enabled: true
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    open-pull-requests-limit: 5

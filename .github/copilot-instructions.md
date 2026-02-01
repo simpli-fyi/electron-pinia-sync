@@ -25,7 +25,7 @@ This is **electron-pinia-sync** - a TypeScript library for synchronizing Pinia s
 - **src/types.ts** - Shared TypeScript types
 
 ### Build System
-- **tsup** for ESM-only builds
+- **tsup** for dual-format builds (ESM + CJS)
 - **vitest** for unit tests
 - **playwright** for E2E tests
 - **TypeScript** Strict Mode enabled
