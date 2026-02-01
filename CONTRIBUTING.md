@@ -514,9 +514,20 @@ Our Semantic Release setup is **compatible with branch protection**:
 - ✅ Creates GitHub Releases directly (no commit to main needed)
 - ✅ Tag is created by GitHub (not pushed to main)
 - ✅ CHANGELOG is generated in the release notes
-- ✅ package.json is updated during NPM publish (not in repo)
+- ✅ package.json version is updated during NPM publish workflow (not in repo)
 
-### For Maintainers
+**Version Management:**
+- The `package.json` in the main branch stays at the initial version (e.g., 1.0.0)
+- The **actual version** is managed via Git Tags (e.g., v1.1.0)
+- The NPM package will have the correct version from the Git Tag
+- This is intentional to avoid Branch Protection conflicts
+
+**To find the current version:**
+- Check Git Tags: `git fetch --tags && git tag -l`
+- Check GitHub Releases: https://github.com/simpli-fyi/electron-pinia-sync/releases
+- Check NPM: `npm view electron-pinia-sync version`
+
+See `.github/RELEASE-WORKFLOW-EXPLAINED.md` for detailed information.
 
 **Skip a release:**
 Include `[skip ci]` in your merge commit message.
