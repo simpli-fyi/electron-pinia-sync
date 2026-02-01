@@ -32,7 +32,7 @@ What actually happened.
 - **Pinia version:** [e.g. 2.1.7]
 - **Vue version:** [e.g. 3.4.0]
 - **OS:** [e.g. macOS 14.0, Windows 11, Ubuntu 22.04]
-- **Node version:** [e.g. 20.0.0]
+- **Node version:** [e.g. 22.14.0]
 
 ## Additional Context
 Add any other context about the problem here (screenshots, logs, etc.)

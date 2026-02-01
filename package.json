@@ -21,7 +21,7 @@
   "type": "module",
   "packageManager": "npm@10.9.0",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.14.0"
   },
   "exports": {
     "./main": {

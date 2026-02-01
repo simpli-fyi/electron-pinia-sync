@@ -62,6 +62,17 @@ With these settings:
 - ✅ Branch must be **up-to-date** before merging
 - ✅ Keeps **clean linear history**
 - ⚠️ Only **administrators** can bypass (emergency only)
+- ✅ **Semantic Release compatible** (creates releases via GitHub API, not git push)
+
+## Important: Semantic Release Compatibility
+
+Our Semantic Release setup is designed to work with strict branch protection:
+- Uses GitHub API to create releases (no git push to main)
+- Tags are created via GitHub (not pushed directly)
+- CHANGELOG is in release notes (not committed)
+- package.json updates happen during NPM publish
+
+This means you can have full branch protection **without** bypassing it for automation.
 
 ## Visual Reference
 

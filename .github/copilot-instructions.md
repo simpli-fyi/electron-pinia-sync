@@ -5,7 +5,7 @@
 This is **electron-pinia-sync** - a TypeScript library for synchronizing Pinia stores between Electron Main and Renderer processes.
 
 ### Requirements
-- **Node.js**: >= 20 (see `engines` in package.json)
+- **Node.js**: >= 22.14 (see `engines` in package.json)
 - **Pinia**: >= 3 (see `peerDependencies` in package.json)
 - **Vue**: >= 3.5 (see `peerDependencies` in package.json)
 - **Electron**: >= 40 (see `peerDependencies` in package.json)

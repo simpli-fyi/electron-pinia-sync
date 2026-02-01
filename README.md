@@ -38,7 +38,7 @@ npm install electron pinia vue
 - Electron >= 40
 - Pinia >= 3.0
 - Vue >= 3.5
-- Node.js >= 20
+- Node.js >= 22.14
 
 **Why?** This keeps the bundle size small and prevents dependency conflicts. You use your own versions of Electron and Pinia.
 

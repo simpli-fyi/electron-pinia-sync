@@ -2,6 +2,8 @@
 
 ## 🚀 Getting Started (5 Minutes)
 
+> **Requirements:** Node.js >= 22.14.0
+
 ```bash
 # 1. Fork the repo on GitHub (click "Fork" button)
 
@@ -136,7 +138,10 @@ git push origin feature/my-feature --force
 ```
 
 **Q: Do I update CHANGELOG.md?**
-A: No! It's auto-generated.
+A: No! It's auto-generated and included in GitHub releases.
+
+**Q: Do I update package.json version?**
+A: No! Version is managed by Semantic Release based on commit types.
 
 **Q: What if I forgot conventional commit format?**
 A: You can amend your last commit:

@@ -24,7 +24,7 @@ Thank you for your interest in contributing! This guide will help you get starte
 
 ### Prerequisites
 
-- Node.js >= 20.0.0
+- Node.js >= 22.14.0
 - npm >= 10.x
 - Git
 
@@ -439,7 +439,7 @@ When you submit a Pull Request, the following automated checks will run:
 Runs on every push and PR to `main` and `develop` branches.
 
 **What it does:**
-- Tests on Node.js 20.x and 22.x
+- Tests on Node.js 22.x and 24.x
 - Runs TypeScript type checking
 - Runs ESLint
 - Runs unit tests
@@ -481,20 +481,21 @@ The `main` branch is protected and requires:
 
 (For maintainers)
 
-We use **Semantic Release** to fully automate versioning and publishing. You **do not** need to manually update `package.json` or `CHANGELOG.md`.
+We use **Semantic Release** to fully automate versioning and publishing. The process is **commit-based** - no manual version changes needed!
 
 ### How it works
 
 1. **Merge to Main**: Once a Pull Request is merged into the `main` branch, a GitHub Action is triggered.
 2. **Semantic Release** (`.github/workflows/prepare-release.yml`):
-   - Analyzes all new commits since the last tag
+   - Analyzes all new commits since the last release
    - Determines the next version based on commit types
-   - Updates `package.json` and `package-lock.json`
-   - Generates/updates `CHANGELOG.md`
+   - Generates CHANGELOG.md content
    - Creates a Git tag (e.g., `v1.1.0`)
-   - Creates a GitHub Release
+   - Creates a GitHub Release with release notes
+   - **Note**: Does NOT commit back to `main` (respects branch protection)
 3. **NPM Publish** (`.github/workflows/publish.yml`):
    - Triggered when a new GitHub Release is created
+   - Updates package.json version
    - Runs all tests and quality checks
    - Publishes to NPM with provenance
    - Requires `NPM_TOKEN` secret
@@ -507,20 +508,33 @@ The commit type determines the version bump:
 - **`feat!:`** or **`BREAKING CHANGE:`** → Major version (1.0.0 → 2.0.0)
 - **`chore:`, `docs:`, `style:`, `refactor:`, `test:`** → No release
 
+### Important: Branch Protection Compatible
+
+Our Semantic Release setup is **compatible with branch protection**:
+- ✅ Creates GitHub Releases directly (no commit to main needed)
+- ✅ Tag is created by GitHub (not pushed to main)
+- ✅ CHANGELOG is generated in the release notes
+- ✅ package.json is updated during NPM publish (not in repo)
+
 ### For Maintainers
 
 **Skip a release:**
-Include `[skip ci]` in your commit message.
+Include `[skip ci]` in your merge commit message.
 
-**Manual release (rarely needed):**
-Semantic Release runs automatically on every merge to `main`. Manual releases should not be necessary.
+**Manual release (emergency only):**
+Semantic Release runs automatically. Manual releases should only be done if the automation fails.
+
+**Check release status:**
+- View releases: https://github.com/simpli-fyi/electron-pinia-sync/releases
+- View workflow runs: https://github.com/simpli-fyi/electron-pinia-sync/actions
 
 ### Dependabot
 
 Dependabot automatically creates PRs for dependency updates:
-- **npm packages:** Weekly
+- **npm packages:** Weekly (Mondays)
 - **GitHub Actions:** Monthly
 - Dependencies are grouped (dev vs core) for easier review
+- Security updates are created immediately
 
 ## Getting Help
 
