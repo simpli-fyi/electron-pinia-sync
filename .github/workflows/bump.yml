@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -26,7 +27,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump Version and Push
+      - name: Install GitHub CLI
         run: |
+          sudo apt-get update
+          sudo apt-get install gh -y
+
+      - name: Create bump branch, bump version, push and open PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH=chore/bump-version-$(date +'%Y%m%d-%H%M%S')
+          git checkout -b $BRANCH
           npm version patch -m "chore: bump version %s [skip ci]"
-          git push --follow-tags
+          git push origin $BRANCH
+          gh pr create --title "chore: bump version" --body "Automatischer Versionsbump durch Workflow" --base main --head $BRANCH --label dependencies
