@@ -23,7 +23,9 @@
         {"path": "dist/preload/index.cjs", "label": "Preload Script (CJS)", "name": "preload-index.cjs"},
         {"path": "dist/preload/index.d.ts", "label": "Preload Script Types (ESM)", "name": "preload-index.d.ts"},
         {"path": "dist/preload/index.d.cts", "label": "Preload Script Types (CJS)", "name": "preload-index.d.cts"}
-      ]
+      ],
+      "draftRelease": false,
+      "releasedLabels": false
     }]
   ]
 }
