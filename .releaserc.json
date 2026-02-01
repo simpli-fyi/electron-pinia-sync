@@ -11,11 +11,20 @@
     }],
     ["@semantic-release/github", {
       "assets": [
-        {
-          "path": "dist/**/*",
-          "label": "Distribution files"
-        }
+        {"path": "dist/main/index.js", "label": "Main Process (ESM)", "name": "main-index.js"},
+        {"path": "dist/main/index.cjs", "label": "Main Process (CJS)", "name": "main-index.cjs"},
+        {"path": "dist/main/index.d.ts", "label": "Main Process Types (ESM)", "name": "main-index.d.ts"},
+        {"path": "dist/main/index.d.cts", "label": "Main Process Types (CJS)", "name": "main-index.d.cts"},
+        {"path": "dist/renderer/index.js", "label": "Renderer Process (ESM)", "name": "renderer-index.js"},
+        {"path": "dist/renderer/index.cjs", "label": "Renderer Process (CJS)", "name": "renderer-index.cjs"},
+        {"path": "dist/renderer/index.d.ts", "label": "Renderer Process Types (ESM)", "name": "renderer-index.d.ts"},
+        {"path": "dist/renderer/index.d.cts", "label": "Renderer Process Types (CJS)", "name": "renderer-index.d.cts"},
+        {"path": "dist/preload/index.js", "label": "Preload Script (ESM)", "name": "preload-index.js"},
+        {"path": "dist/preload/index.cjs", "label": "Preload Script (CJS)", "name": "preload-index.cjs"},
+        {"path": "dist/preload/index.d.ts", "label": "Preload Script Types (ESM)", "name": "preload-index.d.ts"},
+        {"path": "dist/preload/index.d.cts", "label": "Preload Script Types (CJS)", "name": "preload-index.d.cts"}
       ]
     }]
   ]
 }
+
