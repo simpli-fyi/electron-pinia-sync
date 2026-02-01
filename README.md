@@ -35,7 +35,7 @@ npm install electron pinia vue
 ```
 
 **Required versions**:
-- Electron >= 28
+- Electron >= 40
 - Pinia >= 3.0
 - Vue >= 3.5
 - Node.js >= 20
@@ -401,8 +401,6 @@ pinia.use(createRendererSync({
 - `false` (default): Only errors/warnings
 - `true`: Important operations
 - `'verbose'`: Detailed logs with state diffs
-
-For advanced debugging, see [DEBUG.md](./DEBUG.md).
 
 ## Troubleshooting
 

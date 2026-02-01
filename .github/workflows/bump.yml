@@ -1,0 +1,32 @@
+name: Bump Version
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  bump:
+    # Verhindert Endlosschleifen, wenn die Action selbst committet
+    if: "!contains(github.event.head_commit.message, 'chore: bump version')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump Version and Push
+        run: |
+          npm version patch -m "chore: bump version %s [skip ci]"
+          git push --follow-tags

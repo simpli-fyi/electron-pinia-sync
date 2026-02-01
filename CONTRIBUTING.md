@@ -6,8 +6,8 @@ Thank you for your interest in contributing! This guide will help you get starte
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
-- npm (recommended) or npm/yarn
+- Node.js >= 20.0.0
+- npm
 - Git
 
 ### Initial Setup
@@ -339,7 +339,7 @@ All public APIs should have JSDoc comments:
  * mainSync.registerStore('counter', counterStore, {
  *   persist: true
  * });
- * ```
+ * 
  */
 public registerStore(
   storeId: string,
@@ -350,21 +350,54 @@ public registerStore(
 }
 ```
 
+## Commit Message Convention
+
+This project uses **Conventional Commits**. This is crucial because our release process is fully automated. The type of commit determines how the version number is bumped:
+
+* **`fix:`** Bumps the **patch** version (e.g., `1.0.0` -> `1.0.1`).
+* **`feat:`** Bumps the **minor** version (e.g., `1.0.0` -> `1.1.0`).
+* **`feat!:`** or **`BREAKING CHANGE:`** Bumps the **major** version (e.g., `1.0.0` -> `2.0.0`).
+* **`chore:`, `docs:`, `style:`, `refactor:`, `test:**` Do not trigger a new release.
+
+> **Note:** Always use lowercase for the type. Scope is optional but recommended (e.g., `feat(main): ...`).
+
+---
+
 ## Release Process
 
 (For maintainers)
 
-1. Update version in `package.json`
-2. Update CHANGELOG.md
-3. Create a git tag
-4. Push to GitHub
-5. Publish to npm
+1. Update CHANGELOG.md
+2. Create a git tag
+3. Push to GitHub
+4. Create Pull Request to `main`
 
 ```bash
 npm version patch|minor|major
 git push --follow-tags
-npm publish
 ```
+
+We use **Semantic Release** to automate our versioning and package publishing. You don't need to manually update the version in `package.json` or write a `CHANGELOG.md`.
+
+### How it works
+
+1. **Merge to Main**: Once a Pull Request is merged into the `main` branch, a GitHub Action is triggered.
+2. **Analysis**: Semantic Release analyzes all new commits since the last tag.
+3. **Versioning**:
+* It determines the next version number based on the commit types.
+* It updates the `version` field in `package.json`.
+* It generates/updates the `CHANGELOG.md`.
+
+
+4. **Tagging**: A new Git tag (e.g., `v1.1.0`) is created and pushed.
+5. **GitHub Release**: A GitHub Release is created with the generated release notes.
+6. **NPM Publish**: Our secondary workflow detects the new GitHub Release and automatically publishes the package to the NPM registry with provenance.
+
+### For Maintainers
+
+If you need to trigger a release manually without a code change (rarely needed), you can use a "chore" commit, but keep in mind that only `feat` and `fix` trigger an actual version bump by default.
+
+To skip a release for a specific push to main, include `[skip ci]` in your commit message.
 
 ## Getting Help
 
@@ -399,7 +432,7 @@ Feel free to reach out:
 
 - Open an issue
 - Start a discussion
-- Email: [your-email@example.com]
+- Email: [hello@simpli.fyi]
 
 Thank you for contributing! 🎉
 

@@ -8,7 +8,7 @@ This is **electron-pinia-sync** - a TypeScript library for synchronizing Pinia s
 - **Node.js**: >= 20 (see `engines` in package.json)
 - **Pinia**: >= 3 (see `peerDependencies` in package.json)
 - **Vue**: >= 3.5 (see `peerDependencies` in package.json)
-- **Electron**: >= 28 (see `peerDependencies` in package.json)
+- **Electron**: >= 40 (see `peerDependencies` in package.json)
 
 ### Key Features
 - ESM-only (no CommonJS)
