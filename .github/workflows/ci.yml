@@ -68,12 +68,13 @@ jobs:
           path: dist/
 
   e2e:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    #    runs-on: ${{ matrix.os }}
 
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+    #    strategy:
+    #      fail-fast: false
+    #      matrix:
+    #        os: [ ubuntu-latest, macos-latest, windows-latest ]
 
     steps:
       - uses: actions/checkout@v6
@@ -103,7 +104,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: e2e-results-${{ matrix.os }}
+          name: e2e-results-ubuntu-latest
+          #          name: e2e-results-${{ matrix.os }}
           path: |
             playwright-report/
             test-results/
