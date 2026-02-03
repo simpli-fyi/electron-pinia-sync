@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `exposeElectronPiniaSync(options?)` function for configurable preload initialization
+- Debug configuration support in preload script with levels: `false`, `true`, `'verbose'`, `'minimal'`
+- Custom logger support in preload script via `logger` option
+- `PreloadSyncOptions` interface for type-safe configuration
+- New "Debugging" section in README.md with comprehensive examples
+
+### Changed
+
+- Preload script now uses shared `debug.ts` logger with configurable debug levels
+- Improved debugging experience with consistent logger across all modules
+- Side-effect import `import 'electron-pinia-sync/preload'` still works but is not the recommended approach
+
 ## [1.0.0] - 2026-01-30
 
 ### Added

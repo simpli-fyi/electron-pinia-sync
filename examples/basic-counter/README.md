@@ -40,7 +40,8 @@ basic-counter/
    - Manages BrowserWindow
 
 2. **Preload** (`preload.ts`):
-   - Exposes IPC API via contextBridge
+   - Calls `exposeElectronPiniaSync()` to expose IPC API via contextBridge
+   - Configures debug logging
 
 3. **Renderer** (`renderer.ts`):
    - Creates Pinia with sync plugin
