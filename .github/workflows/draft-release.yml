@@ -1,4 +1,4 @@
-name: Release
+name: Draft Release
 
 on:
   workflow_run:
@@ -29,4 +29,3 @@ jobs:
         uses: cycjimmy/semantic-release-action@v6
         env:
           GITHUB_TOKEN: ${{ secrets.SIMPLI_GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
