@@ -1,6 +1,6 @@
 {
   "name": "electron-pinia-sync",
-  "version": "1.0.1",
+  "version": "1.3.0",
   "description": "A comprehensive Pinia plugin for Electron that synchronizes store states across multiple windows via IPC and provides seamless persistence through electron-store.",
   "license": "MIT",
   "author": "simpli.fyi",
