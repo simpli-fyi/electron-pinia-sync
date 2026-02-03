@@ -157,3 +157,6 @@ export function exposeElectronPiniaSync(options: PreloadSyncOptions = {}) {
 if (typeof process !== 'undefined' && process.type === 'renderer') {
   exposeElectronPiniaSync();
 }
+
+// Export debug types for consumers
+export type { DebugLevel, DebugLogger } from '../debug.js';
