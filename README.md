@@ -37,10 +37,70 @@ npm install electron pinia vue
 **Required versions**:
 - Electron >= 40
 - Pinia >= 3.0
-- Vue >= 3.5
 - Node.js >= 22.14
 
 **Why?** This keeps the bundle size small and prevents dependency conflicts. You use your own versions of Electron and Pinia.
+## Configuration
+
+To ensure the library works correctly with Electron's security sandbox (`sandbox: true`), the preload script must have `electron-pinia-sync` bundled (inlined) rather than imported as an external dependency.
+
+### Bundler Configuration
+
+#### electron-vite
+
+Use the `exclude` option in `externalizeDepsPlugin` to force bundling:
+
+```typescript
+// vite.config.ts (Preload)
+import { externalizeDepsPlugin } from 'electron-vite';
+
+export default defineConfig({
+  plugins: [
+    externalizeDepsPlugin({ exclude: ['electron-pinia-sync'] })
+  ]
+});
+```
+
+#### Quasar
+
+Remove the library from the externals list in `quasar.config.js`:
+
+```javascript
+// quasar.config.js
+electron: {
+  extendElectronPreloadConf (cfg) {
+    cfg.external = (cfg.external || []).filter(mod => mod !== 'electron-pinia-sync');
+  }
+}
+```
+
+#### Vite (Generic)
+
+If you configure `rollupOptions` manually, exclude the library from the external list dynamically:
+
+```typescript
+// vite.config.ts
+import pkg from './package.json';
+
+export default {
+  build: {
+    rollupOptions: {
+      // Keep everything external EXCEPT electron-pinia-sync
+      external: [
+        'electron',
+        ...Object.keys(pkg.dependencies || {}).filter(d => d !== 'electron-pinia-sync')
+      ]
+    }
+  }
+};
+```
+
+#### Electron Builder / Packager (No Bundler)
+
+If you are **not** using a bundler and ship raw CommonJS files:
+
+1. **Disable Sandbox**: You must set `sandbox: false` in `webPreferences` so the preload script can `require` module files.
+2. **Dependencies**: Ensure `electron-pinia-sync` is in your `dependencies` (not `devDependencies`) so it gets packed.
 
 ## Quick Start
 
@@ -50,7 +110,22 @@ Set up the secure IPC bridge in your preload script:
 
 ```typescript
 // preload.ts
-import 'electron-pinia-sync/preload';
+import { exposeElectronPiniaSync } from 'electron-pinia-sync/preload';
+
+// Basic usage (no logs)
+exposeElectronPiniaSync();
+
+// With debug logging
+exposeElectronPiniaSync({ debug: true });
+
+// With verbose logging (includes payloads)
+exposeElectronPiniaSync({ debug: 'verbose' });
+
+// With custom logger
+exposeElectronPiniaSync({
+  debug: true,
+  logger: customLogger
+});
 ```
 
 ### 2. Main Process
@@ -149,7 +224,113 @@ const counter = useCounterStore();
 </script>
 ```
 
+## Debugging
+
+All three modules (Main, Renderer, Preload) support configurable debug logging to help you troubleshoot synchronization issues.
+
+### Debug Levels
+
+- **`false`** (default): No debug logs
+- **`true`**: Basic debug logs (store registration, sync events)
+- **`'verbose'`**: Detailed logs including state diffs and payloads
+- **`'minimal'`**: Only errors and warnings
+
+### Preload Script
+
+```typescript
+// preload.ts
+import { exposeElectronPiniaSync } from 'electron-pinia-sync/preload';
+
+exposeElectronPiniaSync({ debug: true });
+// or
+exposeElectronPiniaSync({ debug: 'verbose' });
+```
+
+### Main Process
+
+```typescript
+// main.ts
+import { createMainSync } from 'electron-pinia-sync/main';
+
+const mainSync = createMainSync({
+  debug: true, // or 'verbose' or 'minimal'
+});
+```
+
+### Renderer Process
+
+```typescript
+// renderer.ts
+import { createRendererSync } from 'electron-pinia-sync/renderer';
+
+pinia.use(createRendererSync({
+  debug: true, // or 'verbose' or 'minimal'
+}));
+```
+
+### Custom Logger
+
+You can provide your own logger implementation:
+
+```typescript
+const customLogger = {
+  log: (msg: string, ...args: unknown[]) => myLogger.info(msg, ...args),
+  warn: (msg: string, ...args: unknown[]) => myLogger.warn(msg, ...args),
+  error: (msg: string, ...args: unknown[]) => myLogger.error(msg, ...args),
+};
+
+// Preload
+exposeElectronPiniaSync({ debug: true, logger: customLogger });
+
+// Main
+createMainSync({ debug: true, logger: customLogger });
+
+// Renderer
+createRendererSync({ debug: true, logger: customLogger });
+```
+
 ## API Reference
+
+### Preload Script
+
+#### `exposeElectronPiniaSync(options?)`
+
+Exposes the piniaSync API to the renderer process via contextBridge.
+
+**Options:**
+
+```typescript
+interface PreloadSyncOptions {
+  // Debug level:
+  // - false: No logs (default)
+  // - true: Enable debug logging
+  // - 'verbose': Enable verbose logging with detailed payloads
+  // - 'minimal': Only log errors and warnings
+  debug?: boolean | 'verbose' | 'minimal';
+
+  // Custom logger implementation
+  logger?: {
+    log?: (message: string, ...args: any[]) => void;
+    warn?: (message: string, ...args: any[]) => void;
+    error?: (message: string, ...args: any[]) => void;
+    debug?: (message: string, ...args: any[]) => void;
+    verbose?: (message: string, ...args: any[]) => void;
+  };
+}
+```
+
+**Example:**
+
+```typescript
+// No logs
+exposeElectronPiniaSync();
+
+// With debug logs
+exposeElectronPiniaSync({ debug: true });
+
+// Verbose with all payloads
+exposeElectronPiniaSync({ debug: 'verbose' });
+```
 
 ### Main Process
 
@@ -163,6 +344,18 @@ Creates and initializes the Main process sync manager.
 interface MainSyncOptions {
   // Custom Pinia instance (optional, will create one if not provided)
   pinia?: Pinia;
+  
+  // Debug level (default: false)
+  debug?: boolean | 'verbose' | 'minimal';
+  
+  // Custom logger implementation
+  logger?: {
+    log?: (message: string, ...args: any[]) => void;
+    warn?: (message: string, ...args: any[]) => void;
+    error?: (message: string, ...args: any[]) => void;
+    debug?: (message: string, ...args: any[]) => void;
+    verbose?: (message: string, ...args: any[]) => void;
+  };
   
   // electron-store configuration
   storeOptions?: {
@@ -220,10 +413,16 @@ Creates the Pinia plugin for renderer process synchronization.
 
 ```typescript
 interface RendererSyncOptions {
-  // Custom logger (default: console)
+  // Debug level (default: false)
+  debug?: boolean | 'verbose' | 'minimal';
+  
+  // Custom logger implementation
   logger?: {
-    warn: (message: string, ...args: any[]) => void;
-    error: (message: string, ...args: any[]) => void;
+    log?: (message: string, ...args: any[]) => void;
+    warn?: (message: string, ...args: any[]) => void;
+    error?: (message: string, ...args: any[]) => void;
+    debug?: (message: string, ...args: any[]) => void;
+    verbose?: (message: string, ...args: any[]) => void;
   };
 }
 ```
@@ -294,8 +493,10 @@ pinia.use(createRendererSync({
       console.warn('[MyApp]', msg, ...args);
     },
     error: (msg, ...args) => {
-      // Custom error handler
-      Sentry.captureException(new Error(msg));
+      // Custom error handler - log to your error tracking service
+      console.error('[MyApp] ERROR:', msg, ...args);
+      // Or use your preferred error tracking:
+      // errorTracker.logError(msg, ...args);
     },
   },
 }));
@@ -379,28 +580,6 @@ counter.increment(); // void
 4. **Actions**: Actions can be defined only in Renderer (they're not synced, only state is)
 5. **Initialization**: Wait for store initialization before using in components
 
-## Debugging
-
-Enable debug logging to see synchronization details:
-
-**Main Process:**
-```typescript
-const mainSync = createMainSync({
-  debug: true, // or 'verbose' for detailed logs
-});
-```
-
-**Renderer Process:**
-```typescript
-pinia.use(createRendererSync({
-  debug: 'verbose', // Shows state diffs and patches
-}));
-```
-
-**Debug Levels:**
-- `false` (default): Only errors/warnings
-- `true`: Important operations
-- `'verbose'`: Detailed logs with state diffs
 
 ## Troubleshooting
 

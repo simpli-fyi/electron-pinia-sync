@@ -1,5 +1,5 @@
 // Preload script - exposes Pinia sync API to renderer
-import 'electron-pinia-sync/preload';
+import { exposeElectronPiniaSync } from 'electron-pinia-sync/preload';
 
-console.log('[Preload] Pinia sync API exposed');
-
+// Expose with debug logging enabled
+exposeElectronPiniaSync({ debug: true });
