@@ -42,6 +42,7 @@ Thumbs.db
 
 # tests
 playwright-report
+test-results/
 
 # pvt
 doku_pvt
