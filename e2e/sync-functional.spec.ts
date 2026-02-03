@@ -15,6 +15,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, '..');
 const TEST_APPS_DIR = join(ROOT_DIR, '.test-sync-apps');
 
+// Get Electron launch args with CI-specific flags
+function getElectronLaunchArgs(mainPath: string) {
+  const args = [mainPath];
+  const env = { ...process.env, NODE_ENV: 'test' };
+
+  // Add --no-sandbox flag in CI environments
+  if (process.env.CI || process.env.ELECTRON_DISABLE_SANDBOX) {
+    args.push('--no-sandbox');
+  }
+
+  return { args, env };
+}
+
 // Helper to wait for piniaSync API to be ready
 async function waitForPiniaSync(page: any) {
   if (page.isClosed()) {
@@ -188,11 +201,9 @@ const useTestStore = defineStore('test', {
 `;
 
     const appDir = createSyncTestApp('simple-sync', storeDefinition);
+    const launchConfig = getElectronLaunchArgs(join(appDir, 'src', 'main.js'));
 
-    const electronApp = await electron.launch({
-      args: [join(appDir, 'src', 'main.js')],
-      env: { ...process.env, NODE_ENV: 'test' },
-    });
+    const electronApp = await electron.launch(launchConfig);
 
     try {
       const page = await electronApp.firstWindow();
@@ -200,8 +211,7 @@ const useTestStore = defineStore('test', {
 
       // Pull initial state from renderer
       const initialState = await page.evaluate(async () => {
-        const state = await window.piniaSync.pullState('test');
-        return state;
+        return await window.piniaSync.pullState('test');
       });
 
       expect(initialState).toEqual({
@@ -248,11 +258,9 @@ const useTestStore = defineStore('test', {
 `;
 
     const appDir = createSyncTestApp('nested-sync', storeDefinition);
+    const launchConfig = getElectronLaunchArgs(join(appDir, 'src', 'main.js'));
 
-    const electronApp = await electron.launch({
-      args: [join(appDir, 'src', 'main.js')],
-      env: { ...process.env, NODE_ENV: 'test' },
-    });
+    const electronApp = await electron.launch(launchConfig);
 
     try {
       const page = await electronApp.firstWindow();
@@ -292,11 +300,9 @@ const useTestStore = defineStore('test', {
 `;
 
     const appDir = createSyncTestApp('array-sync', storeDefinition);
+    const launchConfig = getElectronLaunchArgs(join(appDir, 'src', 'main.js'));
 
-    const electronApp = await electron.launch({
-      args: [join(appDir, 'src', 'main.js')],
-      env: { ...process.env, NODE_ENV: 'test' },
-    });
+    const electronApp = await electron.launch(launchConfig);
 
     try {
       const page = await electronApp.firstWindow();
@@ -370,11 +376,9 @@ const useTestStore = defineStore('test', {
 `;
 
     const appDir = createSyncTestApp('deep-nested-sync', storeDefinition);
+    const launchConfig = getElectronLaunchArgs(join(appDir, 'src', 'main.js'));
 
-    const electronApp = await electron.launch({
-      args: [join(appDir, 'src', 'main.js')],
-      env: { ...process.env, NODE_ENV: 'test' },
-    });
+    const electronApp = await electron.launch(launchConfig);
 
     try {
       const page = await electronApp.firstWindow();
@@ -427,11 +431,9 @@ const useTestStore = defineStore('test', {
 `;
 
     const appDir = createSyncTestApp('main-to-renderer', storeDefinition);
+    const launchConfig = getElectronLaunchArgs(join(appDir, 'src', 'main.js'));
 
-    const electronApp = await electron.launch({
-      args: [join(appDir, 'src', 'main.js')],
-      env: { ...process.env, NODE_ENV: 'test' },
-    });
+    const electronApp = await electron.launch(launchConfig);
 
     try {
       const page = await electronApp.firstWindow();
@@ -476,11 +478,9 @@ const useTestStore = defineStore('test', {
 `;
 
     const appDir = createSyncTestApp('multi-renderer', storeDefinition, { windowCount: 2 });
+    const launchConfig = getElectronLaunchArgs(join(appDir, 'src', 'main.js'));
 
-    const electronApp = await electron.launch({
-      args: [join(appDir, 'src', 'main.js')],
-      env: { ...process.env, NODE_ENV: 'test' },
-    });
+    const electronApp = await electron.launch(launchConfig);
 
     try {
       // Wait for both windows
@@ -536,11 +536,9 @@ const useTestStore = defineStore('test', {
 `;
 
     const appDir = createSyncTestApp('main-store-direct', storeDefinition);
+    const launchConfig = getElectronLaunchArgs(join(appDir, 'src', 'main.js'));
 
-    const electronApp = await electron.launch({
-      args: [join(appDir, 'src', 'main.js')],
-      env: { ...process.env, NODE_ENV: 'test' },
-    });
+    const electronApp = await electron.launch(launchConfig);
 
     try {
       const page = await electronApp.firstWindow();
@@ -581,11 +579,9 @@ const useTestStore = defineStore('test', {
 `;
 
     const appDir = createSyncTestApp('renderer-to-all', storeDefinition, { windowCount: 2 });
+    const launchConfig = getElectronLaunchArgs(join(appDir, 'src', 'main.js'));
 
-    const electronApp = await electron.launch({
-      args: [join(appDir, 'src', 'main.js')],
-      env: { ...process.env, NODE_ENV: 'test' },
-    });
+    const electronApp = await electron.launch(launchConfig);
 
     try {
       const windows = await waitForWindows(electronApp, 2);

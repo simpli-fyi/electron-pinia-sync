@@ -5,11 +5,24 @@
 import { test, expect, _electron as electron } from '@playwright/test';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { existsSync, mkdirSync, rmSync, writeFileSync, cpSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, '..');
 const TEST_APPS_DIR = join(ROOT_DIR, '.test-electron-apps');
+
+// Get Electron launch args with CI-specific flags
+function getElectronLaunchArgs(mainPath: string) {
+  const args = [mainPath];
+  const env = { ...process.env, NODE_ENV: 'test' };
+
+  // Add --no-sandbox flag in CI environments
+  if (process.env.CI || process.env.ELECTRON_DISABLE_SANDBOX) {
+    args.push('--no-sandbox');
+  }
+
+  return { args, env };
+}
 
 // Helper to create a test app
 function createTestApp(name: string, preloadCode: string) {
@@ -132,14 +145,9 @@ console.log('[Preload] Side-effect import executed (no function call)');
 `;
 
     const appDir = createTestApp('legacy-app', preloadCode);
+    const launchConfig = getElectronLaunchArgs(join(appDir, 'src', 'main.js'));
 
-    const electronApp = await electron.launch({
-      args: [join(appDir, 'src', 'main.js')],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-      },
-    });
+    const electronApp = await electron.launch(launchConfig);
 
     // Collect console messages and errors
     const consoleMessages: string[] = [];
@@ -209,14 +217,9 @@ console.log('[Preload] Explicit call completed');
 `;
 
     const appDir = createTestApp('new-app', preloadCode);
+    const launchConfig = getElectronLaunchArgs(join(appDir, 'src', 'main.js'));
 
-    const electronApp = await electron.launch({
-      args: [join(appDir, 'src', 'main.js')],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-      },
-    });
+    const electronApp = await electron.launch(launchConfig);
 
     // Collect console messages and errors
     const consoleMessages: string[] = [];
@@ -291,14 +294,9 @@ console.log('[Preload] Verbose debug enabled');
 `;
 
     const appDir = createTestApp('verbose-app', preloadCode);
+    const launchConfig = getElectronLaunchArgs(join(appDir, 'src', 'main.js'));
 
-    const electronApp = await electron.launch({
-      args: [join(appDir, 'src', 'main.js')],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-      },
-    });
+    const electronApp = await electron.launch(launchConfig);
 
     const page = await electronApp.firstWindow();
 
@@ -356,24 +354,17 @@ console.log('[Preload] Second call completed');
 `;
 
     const appDir = createTestApp('double-expose-warning-app', preloadCode);
+    const launchConfig = getElectronLaunchArgs(join(appDir, 'src', 'main.js'));
 
-    const electronApp = await electron.launch({
-      args: [join(appDir, 'src', 'main.js')],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-      },
-    });
+    const electronApp = await electron.launch(launchConfig);
 
     const page = await electronApp.firstWindow();
 
     // Collect console logs
-    const logs: string[] = [];
     const warnings: string[] = [];
 
     page.on('console', msg => {
       const text = msg.text();
-      logs.push(text);
       if (msg.type() === 'warning') {
         warnings.push(text);
       }
@@ -382,9 +373,9 @@ console.log('[Preload] Second call completed');
     await page.waitForTimeout(1000);
 
     // Check if warning appeared
-    const hasWarning = logs.some(log =>
-      log.includes('API already exposed') ||
-      log.includes('Skipping duplicate call')
+    const hasWarning = warnings.some(warning =>
+      warning.includes('API already exposed') ||
+      warning.includes('Skipping duplicate call')
     );
 
     expect(hasWarning).toBe(true);
@@ -418,14 +409,9 @@ try {
 `;
 
     const appDir = createTestApp('double-expose-test-app', preloadCode);
+    const launchConfig = getElectronLaunchArgs(join(appDir, 'src', 'main.js'));
 
-    const electronApp = await electron.launch({
-      args: [join(appDir, 'src', 'main.js')],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-      },
-    });
+    const electronApp = await electron.launch(launchConfig);
 
     const consoleMessages: string[] = [];
     const consoleErrors: string[] = [];
