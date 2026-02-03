@@ -23,6 +23,7 @@ function getElectronLaunchArgs(mainPath: string) {
   // Add --no-sandbox flag in CI environments
   if (process.env.CI || process.env.ELECTRON_DISABLE_SANDBOX) {
     args.push('--no-sandbox');
+    env.ELECTRON_DISABLE_SANDBOX = '1';
   }
 
   return { args, env };

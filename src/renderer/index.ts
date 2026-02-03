@@ -5,8 +5,8 @@
 
 import type {PiniaPluginContext, StateTree, SubscriptionCallbackMutation} from 'pinia';
 import diff, {type Difference} from 'microdiff';
-import type {PiniaSyncAPI, StateUpdateMessage, SyncStoreOptions} from '../types.js';
-import {createDebugLogger, formatPatchForDebug, formatStateForDebug} from '../debug.js';
+import type {PiniaSyncAPI, StateUpdateMessage, SyncStoreOptions} from '../types';
+import {createDebugLogger, formatPatchForDebug, formatStateForDebug} from '../debug';
 import {toRawState} from "../utils/toRawState";
 import type {RendererSyncOptions} from "./models";
 

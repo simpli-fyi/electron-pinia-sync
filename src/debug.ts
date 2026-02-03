@@ -82,4 +82,3 @@ export function formatPatchForDebug(patch: unknown): string {
     return '[Invalid patch]';
   }
 }
-

@@ -13,9 +13,9 @@ import type {
   StatePullRequest,
   StatePullResponse,
   StateUpdateMessage,
-} from '../types.js';
-import {IPC_CHANNELS} from '../types.js';
-import {createDebugLogger, type DebugLogger, formatPatchForDebug, formatStateForDebug} from '../debug.js';
+} from '../types';
+import {IPC_CHANNELS} from '../types';
+import {createDebugLogger, type DebugLogger, formatPatchForDebug, formatStateForDebug} from '../debug';
 import {toRawState} from "../utils/toRawState";
 import type {MainSyncOptions, PiniaWithStores, StoreMetadata} from "./models";
 
