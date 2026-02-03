@@ -10,6 +10,16 @@
 
 # [1.3.0](https://github.com/simpli-fyi/electron-pinia-sync/compare/v1.2.0...v1.3.0) (2026-02-03)
 
+
+### Features
+
+* enhance preload script with configurable debug logging and new API features ([a5c1149](https://github.com/simpli-fyi/electron-pinia-sync/commit/a5c114968ec1c414ca586d2018ada4a1494e5eb9))
+* enhance preload script with configurable debug logging and new API features ([116231b](https://github.com/simpli-fyi/electron-pinia-sync/commit/116231b7ee0e9bfb9490c8a14aab1f7a179b97a9))
+* update release configuration for draft releases and add NPM publishing workflow ([254238a](https://github.com/simpli-fyi/electron-pinia-sync/commit/254238a011baeffa814378cfef9a95cf32e94275))
+* update release configuration for draft releases and add NPM publishing workflow ([92f791b](https://github.com/simpli-fyi/electron-pinia-sync/commit/92f791bf7976e563bd00e795f59480dad1826da4))
+
+# [1.3.0](https://github.com/simpli-fyi/electron-pinia-sync/compare/v1.2.0...v1.3.0) (2026-02-03)
+
 ### Added
 
 - `exposeElectronPiniaSync(options?)` function for configurable preload initialization
