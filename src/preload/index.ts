@@ -12,9 +12,9 @@ import type {
   StateUpdateMessage,
   StatePullRequest,
   StatePullResponse,
-} from '../types.js';
-import { IPC_CHANNELS } from '../types.js';
-import { createDebugLogger, type DebugLevel, type DebugLogger } from '../debug.js';
+} from '../types';
+import { IPC_CHANNELS } from '../types';
+import { createDebugLogger, type DebugLevel, type DebugLogger } from '../debug';
 
 // Track if API has already been exposed
 let _isExposed = false;
@@ -157,3 +157,5 @@ export function exposeElectronPiniaSync(options: PreloadSyncOptions = {}) {
 if (typeof process !== 'undefined' && process.type === 'renderer') {
   exposeElectronPiniaSync();
 }
+
+export type { DebugLevel, DebugLogger } from '../debug';
