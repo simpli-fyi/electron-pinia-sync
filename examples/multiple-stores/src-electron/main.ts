@@ -1,7 +1,8 @@
-import { app, BrowserWindow } from 'electron';
+import {app, BrowserWindow} from 'electron';
 import path from 'path';
-import { createMainSync } from 'electron-pinia-sync/main';
-import { useCounterStore } from './stores/counter';
+import {createMainSync} from 'electron-pinia-sync/main';
+import {initCounterStore} from './stores/counter-store';
+import {initLicenseStore} from './stores/license-store';
 
 let mainWindow: BrowserWindow | null = null;
 let mainSync: ReturnType<typeof createMainSync> | null = null;
@@ -30,30 +31,9 @@ function createWindow() {
   });
 }
 
-function initializePiniaSync() {
-  // Create the Main sync manager
-  mainSync = createMainSync({
-    // Enable debug mode during development
-    debug: process.env.DEBUG ? 'verbose' : false,
-    storeOptions: {
-      name: 'counter-example-store',
-    },
-  });
-
-  // Get the Pinia instance
-  const pinia = mainSync.getPinia();
-
-  // Create the counter store
-  const counterStore = useCounterStore(pinia);
-
-  // Register with persistence enabled
-  mainSync.registerStore('counter', counterStore, {
-    persist: true,
-  });
-}
-
 app.whenReady().then(() => {
-  initializePiniaSync();
+  initCounterStore();
+  initLicenseStore();
   createWindow();
 
   app.on('activate', () => {
