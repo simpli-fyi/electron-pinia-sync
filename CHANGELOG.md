@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/simpli-fyi/electron-pinia-sync/compare/v1.3.0...v1.3.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* deep nested delete ([2bb5490](https://github.com/simpli-fyi/electron-pinia-sync/commit/2bb54901e4bbcb9e61fad295a3fcf0d2b9f3ba50))
+
 # [1.4.0](https://github.com/simpli-fyi/electron-pinia-sync/compare/v1.3.0...v1.4.0) (2026-02-12)
 
 ### Fixed
