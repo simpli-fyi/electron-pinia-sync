@@ -3,11 +3,12 @@
  * Synchronizes local store changes with Main process and receives updates
  */
 
-import type {PiniaPluginContext, StateTree, SubscriptionCallbackMutation} from 'pinia';
-import diff, {type Difference} from 'microdiff';
+import type {PiniaPluginContext, StateTree} from 'pinia';
+import diff from 'microdiff';
 import type {PiniaSyncAPI, StateUpdateMessage, SyncStoreOptions} from '../types';
 import {createDebugLogger, formatPatchForDebug, formatStateForDebug} from '../debug';
 import {toRawState} from "../utils/toRawState";
+import {applyPatch} from "../utils/applyPatch";
 import type {RendererSyncOptions} from "./models";
 
 /**
@@ -18,23 +19,19 @@ function generateTransactionId(): string {
 }
 
 /**
- * Calculate efficient patch using microdiff
- * Falls back to mutation-based extraction if diff is empty but mutation indicates changes
+ * Build patch using microdiff to detect which top-level keys changed.
+ * Returns complete top-level values for changed keys (not merged, but replaced on receiver side).
  */
-function calculatePatch(
+function buildPatch(
   oldState: StateTree,
-  newState: StateTree,
-  mutation: SubscriptionCallbackMutation<StateTree>
+  newState: StateTree
 ): Partial<StateTree> {
-  // Use microdiff to detect changes
-  const differences: Difference[] = diff(oldState, newState);
+  const differences = diff(oldState, newState);
 
   if (differences.length === 0) {
-    // No differences detected, use mutation-based fallback
-    return extractPatchFromMutation(mutation, newState);
+    return {};
   }
 
-  // Build patch object from differences
   const patch: Partial<StateTree> = {};
 
   for (const change of differences) {
@@ -46,45 +43,12 @@ function calculatePatch(
     // Get the top-level key that changed
     const topLevelKey = change.path[0];
     if (typeof topLevelKey === 'string' || typeof topLevelKey === 'number') {
-      // Include the entire top-level property to ensure deep changes are captured
+      // Include the entire top-level property (will be replaced, not merged)
       patch[topLevelKey] = newState[topLevelKey];
     }
   }
 
-  return Object.keys(patch).length > 0 ? patch : extractPatchFromMutation(mutation, newState);
-}
-
-/**
- * Extract patch data from mutation (fallback method)
- */
-function extractPatchFromMutation(
-  mutation: SubscriptionCallbackMutation<StateTree>,
-  state: StateTree
-): Partial<StateTree> {
-  if (mutation.type === 'patch object') {
-    return mutation.payload as Partial<StateTree>;
-  } else if (mutation.type === 'patch function') {
-    // For patch functions, we send the entire state
-    return state;
-  } else if (mutation.type === 'direct') {
-    // For direct mutations, try to extract the changed key
-    const patch: Partial<StateTree> = {};
-    // Direct mutations have events as an array, try to get key from first event
-    const events = mutation.events;
-    if (events && Array.isArray(events) && events.length > 0) {
-      const firstEvent = events[0];
-      const key = firstEvent?.key;
-      if (typeof key === 'string' && key in state) {
-        patch[key] = state[key];
-        return patch;
-      }
-    }
-    // Fallback to entire state if we can't determine the key
-    return state;
-  } else {
-    // Fallback: send entire state
-    return state;
-  }
+  return patch;
 }
 
 /**
@@ -137,8 +101,9 @@ export function createRendererSync(options: RendererSyncOptions = {}) {
         if (state !== null) {
           debug.verbose(`Received initial state for ${store.$id}:`, formatStateForDebug(state));
           // Apply state without triggering sync back to Main
+          // Use applyPatch to replace top-level keys (handles deletions correctly)
           isApplyingRemoteUpdate = true;
-          store.$patch(state);
+          applyPatch(store, state);
           previousState = toRawState(store.$state);
           isApplyingRemoteUpdate = false;
           debug.debug(`Successfully initialized state for store: ${store.$id}`);
@@ -155,20 +120,23 @@ export function createRendererSync(options: RendererSyncOptions = {}) {
      */
     const subscribeToLocalChanges = () => {
       debug.debug(`Subscribing to local changes for store: ${store.$id}`);
-      store.$subscribe((mutation, state) => {
+      store.$subscribe((_mutation, state) => {
         // Skip if we're applying a remote update
         if (isApplyingRemoteUpdate) {
           debug.verbose(`Skipping sync for ${store.$id} (applying remote update)`);
           return;
         }
 
-        debug.verbose(`Local state changed for ${store.$id}, mutation type: ${mutation.type}`);
+        debug.verbose(`Local state changed for ${store.$id}`);
 
-        // Calculate efficient patch using microdiff
-        const patch = calculatePatch(previousState, state, mutation);
+        // Serialize current state
+        const serializedState = toRawState(state);
+
+        // Build patch using microdiff (only send changed top-level keys)
+        const patch = buildPatch(previousState, serializedState);
 
         // Update previous state for next diff
-        previousState = toRawState(state);
+        previousState = serializedState;
 
         // Skip if no changes detected
         if (Object.keys(patch).length === 0) {
@@ -184,11 +152,8 @@ export function createRendererSync(options: RendererSyncOptions = {}) {
         // Track this transaction to prevent echo
         processingTransactions.add(transactionId);
 
-        // Convert patch to raw serializable object for IPC transfer
-        const rawPatch = toRawState(patch);
-
         // Send patch to Main
-        api.patchState(store.$id, rawPatch, transactionId).catch((error: unknown) => {
+        api.patchState(store.$id, patch, transactionId).catch((error: unknown) => {
           debug.error(`Failed to sync state for store "${store.$id}":`, error);
         }).finally(() => {
           // Clean up after a delay
@@ -204,7 +169,8 @@ export function createRendererSync(options: RendererSyncOptions = {}) {
      */
     const subscribeToRemoteUpdates = () => {
       debug.debug(`Subscribing to remote updates for store: ${store.$id}`);
-      const unsubscribe = api.onStateUpdate((message: StateUpdateMessage) => {
+      // Store unsubscribe function for cleanup
+      (store as unknown as { _piniaSync_unsubscribe: () => void })._piniaSync_unsubscribe = api.onStateUpdate((message: StateUpdateMessage) => {
         // Only process updates for this store
         if (message.storeId !== store.$id) {
           return;
@@ -220,17 +186,14 @@ export function createRendererSync(options: RendererSyncOptions = {}) {
 
         debug.verbose(`Applying remote state to ${store.$id}:`, formatStateForDebug(message.state));
 
-        // Apply remote state
+        // Apply remote state using applyPatch to replace top-level keys (handles deletions correctly)
         isApplyingRemoteUpdate = true;
-        store.$patch(message.state);
+        applyPatch(store, message.state);
         previousState = toRawState(store.$state);
         isApplyingRemoteUpdate = false;
 
         debug.debug(`Successfully applied remote update to store: ${store.$id}`);
       });
-
-      // Store unsubscribe function for cleanup
-      (store as unknown as { _piniaSync_unsubscribe: () => void })._piniaSync_unsubscribe = unsubscribe;
     };
 
     // Initialize the store

@@ -4,7 +4,7 @@
 
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import {createPinia, defineStore} from 'pinia';
-import {MainSync} from '../main/index.js';
+import {MainSync} from '../main';
 import {IPC_CHANNELS} from '../types.js';
 
 // Store registered IPC handlers for testing
@@ -1234,6 +1234,207 @@ describe('MainSync', () => {
 
         expect(store.data.sections[0].groups[0].tasks[0].description).toBe('Task 1 Updated');
         expect(store.data.sections[0].groups[0].tasks[0].tags).toContain('updated');
+      });
+    });
+
+    describe('Nested Deletion via IPC (applyPatch)', () => {
+      it('should remove nested object properties when patch omits them', async () => {
+        interface UserState {
+          user: {
+            name: string;
+            profile: {
+              age: number;
+              city: string;
+            };
+          };
+        }
+
+        const useTestStore = defineStore('user-delete-nested-test', {
+          state: (): UserState => ({
+            user: {
+              name: 'John',
+              profile: {
+                age: 30,
+                city: 'Berlin',
+              },
+            },
+          }),
+        });
+
+        const store = useTestStore(pinia);
+        mainSync.registerStore('user-delete-nested-test', store);
+
+        const handler = ipcHandlers.get(IPC_CHANNELS.STATE_PATCH);
+        expect(handler).toBeDefined();
+
+        // Simulate renderer sending patch with city removed
+        await handler!({}, {
+          storeId: 'user-delete-nested-test',
+          patch: {
+            user: {
+              name: 'John',
+              profile: {
+                age: 30,
+                // city is intentionally omitted - should be deleted
+              },
+            },
+          },
+          transactionId: 'tx-delete-nested',
+        });
+
+        expect(store.$state.user.name).toBe('John');
+        expect(store.$state.user.profile.age).toBe(30);
+        // city should be removed, not preserved
+        expect((store.$state.user.profile as Record<string, unknown>).city).toBeUndefined();
+      });
+
+      it('should remove entire nested object when patch omits it', async () => {
+        interface SettingsState {
+          settings: {
+            theme: string;
+            advanced?: {
+              debugMode: boolean;
+              logLevel: string;
+            };
+          };
+        }
+
+        const useTestStore = defineStore('settings-delete-object-test', {
+          state: (): SettingsState => ({
+            settings: {
+              theme: 'dark',
+              advanced: {
+                debugMode: true,
+                logLevel: 'verbose',
+              },
+            },
+          }),
+        });
+
+        const store = useTestStore(pinia);
+        mainSync.registerStore('settings-delete-object-test', store);
+
+        const handler = ipcHandlers.get(IPC_CHANNELS.STATE_PATCH);
+
+        // Simulate renderer sending patch without advanced object
+        await handler!({}, {
+          storeId: 'settings-delete-object-test',
+          patch: {
+            settings: {
+              theme: 'light',
+              // advanced is intentionally omitted - should be deleted
+            },
+          },
+          transactionId: 'tx-delete-object',
+        });
+
+        expect(store.$state.settings.theme).toBe('light');
+        expect(store.$state.settings.advanced).toBeUndefined();
+      });
+
+      it('should handle array item deletion correctly', async () => {
+        interface TodoState {
+          todos: Array<{ id: number; text: string; completed: boolean }>;
+        }
+
+        const useTestStore = defineStore('todos-delete-item-test', {
+          state: (): TodoState => ({
+            todos: [
+              { id: 1, text: 'Buy milk', completed: false },
+              { id: 2, text: 'Walk dog', completed: true },
+              { id: 3, text: 'Clean house', completed: false },
+            ],
+          }),
+        });
+
+        const store = useTestStore(pinia);
+        mainSync.registerStore('todos-delete-item-test', store);
+
+        const handler = ipcHandlers.get(IPC_CHANNELS.STATE_PATCH);
+
+        // Simulate renderer sending patch with item 2 removed
+        await handler!({}, {
+          storeId: 'todos-delete-item-test',
+          patch: {
+            todos: [
+              { id: 1, text: 'Buy milk', completed: false },
+              { id: 3, text: 'Clean house', completed: false },
+            ],
+          },
+          transactionId: 'tx-delete-array-item',
+        });
+
+        expect(store.$state.todos).toHaveLength(2);
+        expect(store.$state.todos.find(t => t.id === 2)).toBeUndefined();
+        expect(store.$state.todos[0].id).toBe(1);
+        expect(store.$state.todos[1].id).toBe(3);
+      });
+
+      it('should handle deeply nested deletion in arrays', async () => {
+        interface ProjectState {
+          projects: Array<{
+            id: number;
+            name: string;
+            tasks: Array<{
+              id: number;
+              title: string;
+              metadata?: {
+                priority: string;
+                tags: string[];
+              };
+            }>;
+          }>;
+        }
+
+        const useTestStore = defineStore('projects-deep-delete-test', {
+          state: (): ProjectState => ({
+            projects: [
+              {
+                id: 1,
+                name: 'Project A',
+                tasks: [
+                  {
+                    id: 1,
+                    title: 'Task 1',
+                    metadata: {
+                      priority: 'high',
+                      tags: ['urgent', 'review'],
+                    },
+                  },
+                ],
+              },
+            ],
+          }),
+        });
+
+        const store = useTestStore(pinia);
+        mainSync.registerStore('projects-deep-delete-test', store);
+
+        const handler = ipcHandlers.get(IPC_CHANNELS.STATE_PATCH);
+
+        // Simulate renderer sending patch with metadata removed from task
+        await handler!({}, {
+          storeId: 'projects-deep-delete-test',
+          patch: {
+            projects: [
+              {
+                id: 1,
+                name: 'Project A',
+                tasks: [
+                  {
+                    id: 1,
+                    title: 'Task 1',
+                    // metadata intentionally omitted
+                  },
+                ],
+              },
+            ],
+          },
+          transactionId: 'tx-deep-delete',
+        });
+
+        expect(store.$state.projects[0].tasks[0].title).toBe('Task 1');
+        expect(store.$state.projects[0].tasks[0].metadata).toBeUndefined();
       });
     });
   });
