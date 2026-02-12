@@ -38,8 +38,12 @@ export interface PiniaWithStores extends Pinia {
 }
 
 /**
- * Store metadata for tracking persistence settings
+ * Store metadata for tracking persistence settings and state history
  */
 export interface StoreMetadata {
   persist: PersistOptions | false;
+  /**
+   * Previous state snapshot for efficient diffing
+   */
+  previousState: StateTree;
 }

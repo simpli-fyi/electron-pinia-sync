@@ -1,3 +1,24 @@
+# [1.4.0](https://github.com/simpli-fyi/electron-pinia-sync/compare/v1.3.0...v1.4.0) (2026-02-12)
+
+### Fixed
+
+- **Critical**: Fixed nested property deletion not syncing correctly between processes
+  - Previously, when a nested property was deleted (e.g., `delete store.user.profile.city`), the deletion was not propagated correctly due to Pinia's `$patch()` performing a shallow merge
+  - Introduced `applyPatch()` utility that replaces top-level keys instead of merging, ensuring deleted nested properties are properly removed on the receiving end
+  - This fix applies to both Main → Renderer and Renderer → Main synchronization
+
+### Changed
+
+- Main process now uses `microdiff` for efficient change detection (only sends changed top-level keys)
+- Simplified renderer patch calculation by removing mutation-based fallback
+- Both Main and Renderer now use `applyPatch()` for consistent state application
+
+### Added
+
+- New `applyPatch()` utility in `src/utils/applyPatch.ts` for replacing top-level keys without merging
+- Added `previousState` tracking to Main process for efficient diffing
+- New unit tests for nested deletion scenarios in both Main and Renderer
+
 # [1.3.0](https://github.com/simpli-fyi/electron-pinia-sync/compare/v1.2.0...v1.3.0) (2026-02-03)
 
 ### Added

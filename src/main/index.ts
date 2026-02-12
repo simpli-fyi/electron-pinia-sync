@@ -17,6 +17,8 @@ import type {
 import {IPC_CHANNELS} from '../types';
 import {createDebugLogger, type DebugLogger, formatPatchForDebug, formatStateForDebug} from '../debug';
 import {toRawState} from "../utils/toRawState";
+import {applyPatch} from "../utils/applyPatch";
+import diff from 'microdiff';
 import type {MainSyncOptions, PiniaWithStores, StoreMetadata} from "./models";
 
 export class MainSync {
@@ -60,8 +62,12 @@ export class MainSync {
     this.debug.debug(`Registering store: ${storeId}`);
     const persistConfig = this.normalizePersistOptions(options.persist);
 
+    // Initialize previous state for diffing
+    let previousState = toRawState(store.$state);
+
     this.storeMetadata.set(storeId, {
       persist: persistConfig,
+      previousState,
     });
 
     // Load persisted state if enabled
@@ -71,7 +77,10 @@ export class MainSync {
 
       if (persistedState) {
         this.debug.verbose(`Loading persisted state for ${storeId}:`, formatStateForDebug(persistedState));
-        store.$patch(persistedState);
+        // Use applyPatch to replace top-level keys (handles deletions correctly)
+        applyPatch(store, persistedState);
+        previousState = toRawState(store.$state);
+        this.storeMetadata.get(storeId)!.previousState = previousState;
       } else {
         this.debug.verbose(`No persisted state found for ${storeId}`);
       }
@@ -84,6 +93,39 @@ export class MainSync {
       // Serialize state to plain object
       const serializedState = toRawState(state);
 
+      // Get metadata for previousState
+      const metadata = this.storeMetadata.get(storeId);
+      if (!metadata) {
+        this.debug.warn(`Store metadata not found for ${storeId}`);
+        return;
+      }
+
+      // Calculate patch using microdiff (only send changed top-level keys)
+      const differences = diff(metadata.previousState, serializedState);
+
+      if (differences.length === 0) {
+        this.debug.verbose(`No changes detected for ${storeId}, skipping broadcast`);
+        return;
+      }
+
+      // Build patch with complete top-level values for changed keys
+      const patch: Partial<StateTree> = {};
+      for (const change of differences) {
+        if (change.path.length === 0) {
+          // Root-level change - should not happen normally
+          this.debug.verbose(`Root-level change detected for ${storeId}, broadcasting full state`);
+          Object.assign(patch, serializedState);
+          break;
+        }
+        const topLevelKey = change.path[0];
+        if (typeof topLevelKey === 'string' || typeof topLevelKey === 'number') {
+          patch[topLevelKey] = serializedState[topLevelKey];
+        }
+      }
+
+      // Update previousState for next diff
+      metadata.previousState = serializedState;
+
       // Persist if enabled
       if (persistConfig) {
         const key = persistConfig.key ?? storeId;
@@ -91,8 +133,8 @@ export class MainSync {
         this.debug.verbose(`Persisted state for ${storeId} to key: ${key}`);
       }
 
-      // Broadcast to all renderer processes
-      this.broadcastStateUpdate(storeId, serializedState);
+      // Broadcast patch to all renderer processes
+      this.broadcastStateUpdate(storeId, patch);
     }, {detached: true});
 
     this.debug.debug(`Store ${storeId} registered successfully (persist: ${!!persistConfig})`);
@@ -158,8 +200,8 @@ export class MainSync {
         this.addTransaction(message.transactionId);
 
         try {
-          // Apply patch to main store
-          store.$patch(message.patch);
+          // Apply patch to main store using applyPatch to handle deletions correctly
+          applyPatch(store, message.patch);
           this.debug.debug(`Successfully applied patch to store: ${message.storeId}`);
         } catch (error) {
           this.debug.error(`Failed to patch store "${message.storeId}":`, error);

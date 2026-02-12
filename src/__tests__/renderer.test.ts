@@ -11,7 +11,7 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import {createApp} from 'vue';
 import {createPinia, defineStore} from 'pinia';
-import {createRendererSync} from '../renderer/index.js';
+import {createRendererSync} from '../renderer';
 import type {PiniaSyncAPI, StateUpdateMessage} from '../types.js';
 
 describe('RendererSync', () => {
@@ -506,9 +506,8 @@ describe('RendererSync', () => {
         await new Promise(resolve => setTimeout(resolve, 50));
         patches.length = 0;
 
-        // Delete property by creating new object without it
-        const {notifications: _notifications, ...rest} = store.settings;
-        store.$patch({settings: rest});
+        // Delete property directly (Pinia's $patch does shallow merge and won't remove keys)
+        delete store.settings.notifications;
         await new Promise(resolve => setTimeout(resolve, 50));
 
         expect(patches.length).toBeGreaterThan(0);
@@ -1607,6 +1606,212 @@ describe('RendererSync', () => {
 
       // Verify it's actually serializable (no reactive proxy)
       expect(() => structuredClone(receivedPatch)).not.toThrow();
+    });
+  });
+
+  describe('Nested Deletion via Remote Updates (applyPatch)', () => {
+    it('should remove nested object properties when remote update omits them', async () => {
+      const mockAPI = createMockAPI();
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
+      pinia.use(plugin);
+
+      interface UserState {
+        user: {
+          name: string;
+          profile: {
+            age: number;
+            city?: string;
+          };
+        };
+      }
+
+      const useTestStore = defineStore('user-nested-delete', {
+        state: (): UserState => ({
+          user: {
+            name: 'John',
+            profile: {
+              age: 30,
+              city: 'Berlin',
+            },
+          },
+        }),
+      });
+
+      const store = useTestStore(pinia);
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Simulate remote update with city removed
+      onStateUpdateCallback?.({
+        storeId: 'user-nested-delete',
+        state: {
+          user: {
+            name: 'John',
+            profile: {
+              age: 31,
+              // city intentionally omitted
+            },
+          },
+        },
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(store.user.name).toBe('John');
+      expect(store.user.profile.age).toBe(31);
+      // city should be removed, not preserved
+      expect((store.user.profile as Record<string, unknown>).city).toBeUndefined();
+    });
+
+    it('should remove entire nested object when remote update omits it', async () => {
+      const mockAPI = createMockAPI();
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
+      pinia.use(plugin);
+
+      interface SettingsState {
+        settings: {
+          theme: string;
+          advanced?: {
+            debugMode: boolean;
+          };
+        };
+      }
+
+      const useTestStore = defineStore('settings-object-delete', {
+        state: (): SettingsState => ({
+          settings: {
+            theme: 'dark',
+            advanced: {
+              debugMode: true,
+            },
+          },
+        }),
+      });
+
+      const store = useTestStore(pinia);
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Simulate remote update with advanced object removed
+      onStateUpdateCallback?.({
+        storeId: 'settings-object-delete',
+        state: {
+          settings: {
+            theme: 'light',
+            // advanced intentionally omitted
+          },
+        },
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(store.settings.theme).toBe('light');
+      expect(store.settings.advanced).toBeUndefined();
+    });
+
+    it('should handle array item deletion correctly via remote update', async () => {
+      const mockAPI = createMockAPI();
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
+      pinia.use(plugin);
+
+      interface TodoState {
+        todos: Array<{ id: number; text: string }>;
+      }
+
+      const useTestStore = defineStore('todos-array-delete', {
+        state: (): TodoState => ({
+          todos: [
+            { id: 1, text: 'Item 1' },
+            { id: 2, text: 'Item 2' },
+            { id: 3, text: 'Item 3' },
+          ],
+        }),
+      });
+
+      const store = useTestStore(pinia);
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Simulate remote update with item 2 removed
+      onStateUpdateCallback?.({
+        storeId: 'todos-array-delete',
+        state: {
+          todos: [
+            { id: 1, text: 'Item 1' },
+            { id: 3, text: 'Item 3' },
+          ],
+        },
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(store.todos).toHaveLength(2);
+      expect(store.todos.find(t => t.id === 2)).toBeUndefined();
+      expect(store.todos[0].id).toBe(1);
+      expect(store.todos[1].id).toBe(3);
+    });
+
+    it('should handle deeply nested deletion via remote update', async () => {
+      const mockAPI = createMockAPI();
+      const {pinia} = createTestPinia();
+      const plugin = createRendererSync({customApi: mockAPI});
+      pinia.use(plugin);
+
+      interface ProjectState {
+        projects: Array<{
+          id: number;
+          tasks: Array<{
+            id: number;
+            metadata?: {
+              priority: string;
+            };
+          }>;
+        }>;
+      }
+
+      const useTestStore = defineStore('projects-deep-delete', {
+        state: (): ProjectState => ({
+          projects: [
+            {
+              id: 1,
+              tasks: [
+                {
+                  id: 1,
+                  metadata: {
+                    priority: 'high',
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const store = useTestStore(pinia);
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Simulate remote update with metadata removed
+      onStateUpdateCallback?.({
+        storeId: 'projects-deep-delete',
+        state: {
+          projects: [
+            {
+              id: 1,
+              tasks: [
+                {
+                  id: 1,
+                  // metadata intentionally omitted
+                },
+              ],
+            },
+          ],
+        },
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(store.projects[0].tasks[0].id).toBe(1);
+      expect(store.projects[0].tasks[0].metadata).toBeUndefined();
     });
   });
 });
