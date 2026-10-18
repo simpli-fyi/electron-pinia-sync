@@ -65,16 +65,16 @@
     "vue": ">=3.5.0"
   },
   "dependencies": {
-    "electron-store": "^11.0.0",
+    "electron-store": "^12.0.0",
     "microdiff": "^1.5.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.0",
     "@types/node": "^25.1.0",
     "@vitest/coverage-v8": "^4.0.0",
-    "electron": "^41.1.0",
+    "electron": "^44.7.2",
     "eslint": "^10.0.1",
-    "pinia": "^3.0.0",
+    "pinia": "^4.1.0",
     "playwright": "^1.58.0",
     "tsup": "^8.5.0",
     "tsx": "^4.21.0",
